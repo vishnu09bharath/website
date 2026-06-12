@@ -119,6 +119,7 @@ a:hover {
 .hero-header h1 {
   color: #fff;
   font-size: clamp(2.75rem, 9vw, 7rem);
+  font-weight: 500;
   letter-spacing: -0.02em;
   white-space: nowrap;
 }
