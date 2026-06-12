@@ -110,7 +110,7 @@ a:hover {
 
 .hero-header {
   position: absolute;
-  top: 3rem;
+  top: 2rem;
   left: 0;
   right: 0;
   text-align: center;
@@ -118,11 +118,29 @@ a:hover {
 
 .hero-header h1 {
   color: #fff;
-  font-size: 1.5rem;
+  font-size: clamp(2.75rem, 9vw, 7rem);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
 }
 
-.hero-header .tagline {
-  color: rgba(255, 255, 255, 0.7);
+.hero-links {
+  position: absolute;
+  right: 1.5rem;
+  bottom: 1.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: right;
+}
+
+.hero-links a {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.hero-links a:hover {
+  color: #fff;
 }
 
 .cards {
