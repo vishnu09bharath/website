@@ -1,0 +1,28 @@
+---
+interface Props {
+  active?: "work" | "projects" | "thoughts" | "about";
+}
+
+const { active } = Astro.props;
+
+const items = [
+  { key: "work", href: "/work/", label: "Work" },
+  { key: "projects", href: "/projects/", label: "Projects" },
+  { key: "thoughts", href: "/thoughts/", label: "Thoughts" },
+  { key: "about", href: "/about/", label: "About" },
+] as const;
+---
+
+<nav class="section-taskbar" aria-label="Site sections">
+  {
+    items.map((item) => (
+      <a
+        class:list={[{ "is-active": active === item.key }]}
+        href={item.href}
+        aria-current={active === item.key ? "page" : undefined}
+      >
+        {item.label}
+      </a>
+    ))
+  }
+</nav>

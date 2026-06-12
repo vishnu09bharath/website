@@ -1,0 +1,73 @@
+---
+import Base from "../../layouts/Base.astro";
+import SectionTaskbar from "../../components/SectionTaskbar.astro";
+
+const description =
+  "Work by Vishnu Bharath across robotics research, FRC, publications, AI, and student-led ventures.";
+
+const sections = [
+  {
+    href: "/work/media-lab/",
+    title: "MIT Media Lab — City Science",
+    time: "2024 –",
+    blurb: "RL control and human-robot interaction for last-meter delivery robots.",
+  },
+  {
+    href: "/work/frc/",
+    title: "FRC Team 9644",
+    time: "2023 –",
+    blurb: "Co-founder, captain & driver. 2026 New England Champions.",
+  },
+  {
+    href: "/work/school-store/",
+    title: "NEIA School Store",
+    time: "2023 – 2025",
+    blurb: "CEO. Zero to $25K+ annual revenue at full profitability.",
+  },
+];
+---
+
+<Base title="Work — Vishnu Bharath" description={description} back>
+  <header>
+    <h1>Work</h1>
+    <p class="tagline">Research, robotics, publications, and student-led work.</p>
+  </header>
+
+  <main>
+    <SectionTaskbar active="work" />
+
+    <nav class="cards" aria-label="Work">
+      {
+        sections.map((s) => (
+          <a class="card" href={s.href}>
+            <div class="entry-head">
+              <h3>{s.title}</h3>
+              <time>{s.time}</time>
+            </div>
+            <p>{s.blurb}</p>
+            <span class="arrow" aria-hidden="true">→</span>
+          </a>
+        ))
+      }
+    </nav>
+
+    <h2>Publications</h2>
+
+    <article class="entry">
+      <div class="entry-head">
+        <h3>
+          <a href="/work/publications/"
+            >Do Robots Need Body Language? Comparing Communication Modalities
+            for Legible Motion Intent in Human-Shared Spaces</a
+          >
+        </h3>
+        <time>2026</time>
+      </div>
+      <p class="pub-authors">
+        J. Cohen, K. Shimizu, <strong>V. Bharath</strong>, Y. Song, K. Larson,
+        P. Maes
+      </p>
+      <p class="pub-authors">ACM/IEEE HRI ’26</p>
+    </article>
+  </main>
+</Base>

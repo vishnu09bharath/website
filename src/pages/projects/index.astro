@@ -1,0 +1,42 @@
+---
+import Base from "../../layouts/Base.astro";
+import SectionTaskbar from "../../components/SectionTaskbar.astro";
+
+const description =
+  "Projects by Vishnu Bharath across robotics, AI, software, and student-led initiatives.";
+
+const projects = [
+  {
+    href: "/projects/day-of-ai/",
+    title: "MIT Day of AI — Gear Grease",
+    time: "2024",
+    blurb: "LLM-driven game NPCs, presented at the Boston Museum of Science.",
+  },
+];
+---
+
+<Base title="Projects — Vishnu Bharath" description={description} back>
+  <header>
+    <h1>Projects</h1>
+    <p class="tagline">Robotics, AI, software, and experiments in progress.</p>
+  </header>
+
+  <main>
+    <SectionTaskbar active="projects" />
+
+    <nav class="cards" aria-label="Projects">
+      {
+        projects.map((project) => (
+          <a class="card" href={project.href}>
+            <div class="entry-head">
+              <h3>{project.title}</h3>
+              <time>{project.time}</time>
+            </div>
+            <p>{project.blurb}</p>
+            <span class="arrow" aria-hidden="true">→</span>
+          </a>
+        ))
+      }
+    </nav>
+  </main>
+</Base>

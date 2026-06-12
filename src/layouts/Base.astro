@@ -5,9 +5,10 @@ interface Props {
   title: string;
   description: string;
   back?: boolean;
+  backHref?: string;
 }
 
-const { title, description, back = false } = Astro.props;
+const { title, description, back = false, backHref = "/" } = Astro.props;
 ---
 
 <!doctype html>
@@ -23,8 +24,11 @@ const { title, description, back = false } = Astro.props;
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>
   <body>
-    {back && <a class="back" href="/">← Vishnu Bharath</a>}
+    {back && <a class="back" href={backHref}>← Back</a>}
     <slot />
-    <footer>Vishnu Bharath — Massachusetts</footer>
+    <footer>
+      <span>Vishnu Bharath — Massachusetts</span>
+      <a href="/privacy/">Privacy</a>
+    </footer>
   </body>
 </html>

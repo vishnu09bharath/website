@@ -1,0 +1,20 @@
+---
+import Base from "../layouts/Base.astro";
+import SectionTaskbar from "../components/SectionTaskbar.astro";
+
+const description =
+  "Notes, essays, and technical thoughts from Vishnu Bharath.";
+---
+
+<Base title="Thoughts — Vishnu Bharath" description={description} back>
+  <header>
+    <h1>Thoughts</h1>
+    <p class="tagline">Notes, essays, and technical writing.</p>
+  </header>
+
+  <main>
+    <SectionTaskbar active="thoughts" />
+
+    <p class="intro">hmmm....</p>
+  </main>
+</Base>
