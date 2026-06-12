@@ -247,3 +247,64 @@ const description =
     });
   }
 </script>
+
+<script>
+  // On load, "form" the hero name out of a pixelated scramble: every glyph
+  // flickers through block/glitch characters, then resolves left-to-right into
+  // the real letters. Each letter is locked into its measured width during the
+  // animation so the centered heading doesn't jitter, then handed back to plain
+  // responsive text when finished.
+  const heading = document.querySelector<HTMLElement>(".hero-header h1");
+  const noMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (heading && !noMotion && "requestAnimationFrame" in window) {
+    const finalText = heading.textContent ?? "";
+    const glyphs = "▚▞▓▒░█▤▥▦▧#%&0123456789";
+    const pick = () => glyphs[(Math.random() * glyphs.length) | 0];
+
+    heading.setAttribute("aria-label", finalText);
+
+    // Build one fixed-width slot per character so scramble glyphs of varying
+    // width stay centered in place.
+    const slots = [...finalText].map((ch) => {
+      const span = document.createElement("span");
+      span.textContent = ch === " " ? " " : ch;
+      span.style.display = "inline-block";
+      span.style.textAlign = "center";
+      span.setAttribute("aria-hidden", "true");
+      heading.appendChild(span);
+      return { span, ch };
+    });
+    heading.firstChild &&
+      heading.removeChild(heading.firstChild as ChildNode); // drop the SSR text node
+
+    const plan = slots.map((s, i) => {
+      s.span.style.width = `${s.span.getBoundingClientRect().width}px`;
+      if (s.ch !== " ") {
+        s.span.textContent = pick(); // start scrambled, no flash
+        s.span.style.color = "rgb(140,140,140)"; // start gray, brighten as it sets
+      }
+      return { start: i * 42 + Math.random() * 65, dur: 200 + Math.random() * 230 };
+    });
+    const total = Math.max(...plan.map((p) => p.start + p.dur));
+    const t0 = performance.now();
+
+    function frame(now: number) {
+      const t = now - t0;
+      for (let i = 0; i < slots.length; i++) {
+        const { ch, span } = slots[i];
+        if (ch === " ") continue;
+        const { start, dur } = plan[i];
+        const settled = t >= start + dur;
+        span.textContent = settled ? ch : pick();
+        // Ramp each glyph from gray up to white over its own resolve window.
+        const p = Math.max(0, Math.min(1, (t - start) / dur));
+        const g = Math.round(140 + 115 * p);
+        span.style.color = `rgb(${g},${g},${g})`;
+      }
+      if (t < total) requestAnimationFrame(frame);
+      else heading.textContent = finalText; // restore clean, responsive text
+    }
+    requestAnimationFrame(frame);
+  }
+</script>
