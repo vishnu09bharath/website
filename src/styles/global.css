@@ -93,7 +93,7 @@ a:hover {
 }
 
 .announcement {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   z-index: 3;
@@ -131,6 +131,7 @@ a:hover {
   height: 100svh;
   margin-left: calc(50% - 50vw);
   margin-top: -5rem;
+  overflow: hidden;
 }
 
 .hero {
@@ -141,11 +142,34 @@ a:hover {
   object-position: 50% 42%;
 }
 
+.pixel-fx {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* Cut-out of Vishnu, aligned to .hero, sitting above the pixelation so the
+   censor blocks can never bleed onto him. */
+.hero-foreground {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 42%;
+  pointer-events: none;
+}
+
 .hero-header {
   position: absolute;
   top: 2rem;
   left: 0;
   right: 0;
+  z-index: 2;
   text-align: center;
 }
 
@@ -188,6 +212,7 @@ a:hover {
   left: 0;
   right: 0;
   bottom: 0;
+  z-index: 1;
   height: 22svh;
   background: linear-gradient(to bottom, transparent, var(--bg));
   pointer-events: none;
@@ -195,7 +220,7 @@ a:hover {
 
 .hero-links,
 .scroll-cue {
-  z-index: 1;
+  z-index: 2;
 }
 
 .scroll-cue {
@@ -205,10 +230,10 @@ a:hover {
   bottom: 1rem;
   text-align: center;
   color: var(--fg);
-  font-size: 1.65rem;
+  font-size: 2rem;
   text-decoration: none;
   opacity: 0;
-  animation: cue-in 0.8s ease 1s forwards;
+  animation: cue-in 1.6s ease 1.3s forwards;
 }
 
 .scroll-cue span {
