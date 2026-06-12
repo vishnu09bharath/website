@@ -13,6 +13,18 @@
     aria-label="Globe — click for current location and time"
   >
     <canvas class="globe-canvas"></canvas>
+    <svg class="globe-coords" viewBox="0 0 100 100" aria-hidden="true">
+      <defs>
+        <path id="coords-top" d="M -4,50 A 54,54 0 0,1 104,50" />
+        <path id="coords-bot" d="M -8,50 A 58,58 0 0,0 108,50" />
+      </defs>
+      <text class="coords-text">
+        <textPath href="#coords-top" startOffset="50%" text-anchor="middle">42.2043° N</textPath>
+      </text>
+      <text class="coords-text">
+        <textPath href="#coords-bot" startOffset="50%" text-anchor="middle">71.5234° W</textPath>
+      </text>
+    </svg>
   </button>
 
   <div class="globe-status" aria-hidden="true">
@@ -58,6 +70,7 @@
 
   .globe {
     flex: 0 0 auto;
+    position: relative;
     width: clamp(150px, 38vw, 220px);
     aspect-ratio: 1;
     padding: 0;
@@ -68,6 +81,26 @@
       transform 0.35s ease,
       width 0.5s ease;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  .globe-coords {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+    pointer-events: none;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+  }
+  .globe-stage.open .globe-coords {
+    opacity: 0;
+  }
+  .coords-text {
+    fill: var(--muted);
+    font-size: 4.8px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    letter-spacing: 0.06em;
   }
   /* Scale only on real pointer devices, and only while the globe is at rest
      (closed and not mid-transition) — otherwise hover flips as the globe
@@ -161,7 +194,7 @@
   const HOME = { lon: -71.0589, lat: 42.3601 }; // Boston, MA
   const DEST = { lon: 120.1551, lat: 30.2741 }; // Hangzhou, China
 
-  const PHI0 = (18 * Math.PI) / 180; // fixed viewing tilt
+  const PHI0 = (38 * Math.PI) / 180; // fixed viewing tilt
   const sinP = Math.sin(PHI0);
   const cosP = Math.cos(PHI0);
   const DEG = Math.PI / 180;
