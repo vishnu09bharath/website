@@ -428,14 +428,19 @@ a:hover {
 
 footer {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
+  justify-content: center;
+  gap: 0.5rem;
   margin-top: 5rem;
   padding-top: 1.5rem;
   border-top: 1px solid var(--rule);
   color: var(--muted);
   font-size: 0.85rem;
+}
+
+footer .dot {
+  color: var(--rule);
 }
 
 footer a {
@@ -445,4 +450,9 @@ footer a {
 
 footer a:hover {
   color: var(--fg);
+}
+
+footer .footer-privacy {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }

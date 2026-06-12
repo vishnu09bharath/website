@@ -9,6 +9,7 @@ interface Props {
 }
 
 const { title, description, back = false, backHref = "/" } = Astro.props;
+const year = new Date().getFullYear();
 ---
 
 <!doctype html>
@@ -27,8 +28,9 @@ const { title, description, back = false, backHref = "/" } = Astro.props;
     {back && <a class="back" href={backHref}>← Back</a>}
     <slot />
     <footer>
-      <span>Vishnu Bharath — Massachusetts</span>
-      <a href="/privacy/">Privacy</a>
+      <span class="footer-copy">© {year} Vishnu Bharath</span>
+      <span class="dot" aria-hidden="true">·</span>
+      <a class="footer-privacy" href="/privacy/">Privacy</a>
     </footer>
   </body>
 </html>
