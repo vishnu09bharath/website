@@ -1,23 +1,17 @@
 ---
-import "../styles/global.css";
+import Base from "../layouts/Base.astro";
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Not found — Vishnu Bharath</title>
-    <meta name="robots" content="noindex" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  </head>
-  <body>
-    <header>
-      <h1>Page not found</h1>
-      <p class="tagline">There's nothing here.</p>
-    </header>
-    <main>
-      <p class="intro"><a href="/">Back to the homepage</a></p>
-    </main>
-  </body>
-</html>
+<Base
+  title="Not found — Vishnu Bharath"
+  description="Page not found."
+  back
+>
+  <header>
+    <h1>Page not found</h1>
+    <p class="tagline">There's nothing here.</p>
+  </header>
+  <main>
+    <p class="intro"><a href="/">Back to the homepage</a></p>
+  </main>
+</Base>

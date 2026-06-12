@@ -1,140 +1,91 @@
 ---
-import "../styles/global.css";
+import Base from "../layouts/Base.astro";
 
 const description =
   "Vishnu Bharath — robotics researcher at the MIT Media Lab's City Science group and founding captain of FRC Team 9644.";
+
+const sections = [
+  {
+    href: "/media-lab/",
+    title: "MIT Media Lab — City Science",
+    time: "2024 –",
+    blurb: "RL control and human-robot interaction for last-meter delivery robots.",
+  },
+  {
+    href: "/frc/",
+    title: "FRC Team 9644",
+    time: "2023 –",
+    blurb: "Co-founder, captain & driver. 2026 New England Champions.",
+  },
+  {
+    href: "/publications/",
+    title: "Publications",
+    time: "2026",
+    blurb: "Do Robots Need Body Language? — ACM/IEEE HRI ’26.",
+  },
+  {
+    href: "/day-of-ai/",
+    title: "MIT Day of AI — Gear Grease",
+    time: "2024",
+    blurb: "LLM-driven game NPCs, presented at the Boston Museum of Science.",
+  },
+  {
+    href: "/school-store/",
+    title: "NEIA School Store",
+    time: "2023 – 2025",
+    blurb: "CEO. Zero to $25K+ annual revenue at full profitability.",
+  },
+];
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Vishnu Bharath</title>
-    <meta name="description" content={description} />
-    <meta property="og:title" content="Vishnu Bharath" />
-    <meta property="og:description" content={description} />
-    <meta property="og:type" content="website" />
-    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-    <link rel="canonical" href="https://vishnubharath.com/" />
-  </head>
-  <body>
-    <header>
-      <h1>Vishnu Bharath</h1>
-      <p class="tagline">Robotics research &amp; human-robot interaction</p>
-    </header>
+<Base title="Vishnu Bharath" description={description}>
+  <header>
+    <h1>Vishnu Bharath</h1>
+    <p class="tagline">Robotics research &amp; human-robot interaction</p>
+  </header>
 
-    <main>
-      <p class="intro">
-        I'm a student researcher in the
-        <a href="https://www.media.mit.edu/groups/city-science/overview/"
-          >City Science group</a
-        > at the MIT Media Lab, where I work on control and human-robot
-        interaction for last-meter delivery robots in cities. I also founded
-        and captain FIRST Robotics Competition Team 9644, the 2026 New England
-        Champions.
-      </p>
+  <main>
+    <img
+      class="hero"
+      src="/images/hero-pit.jpg"
+      alt="Vishnu standing at the driver station during a FIRST Robotics Competition match"
+      width="1800"
+      height="1200"
+      fetchpriority="high"
+    />
 
-      <h2>Selected Work</h2>
+    <p class="intro">
+      I'm a student researcher in the City Science group at the MIT Media
+      Lab, where I work on control and human-robot interaction for last-meter
+      delivery robots in cities. I also founded and captain FIRST Robotics
+      Competition Team 9644, the 2026 New England Champions.
+    </p>
 
-      <article class="entry">
-        <div class="entry-head">
-          <h3>MIT Media Lab — City Science</h3>
-          <time>2024 –</time>
-        </div>
-        <p class="role">Student Researcher</p>
-        <p>
-          Deployed reinforcement-learning control policies on custom bipedal
-          (6-DOF) and quadruped (16-DOF) last-meter delivery robots, demoed
-          live to 20+ industry partners. Built path planning and low-level
-          control in ROS — AprilTag localization, SLAM, and a novel
-          multi-robot docking mechanism for cooperative navigation over urban
-          obstacles. The only high-school researcher in the lab, invited to
-          stay on through 2028+ between Cambridge and Taipei.
-        </p>
-      </article>
+    <h2>Work</h2>
 
-      <article class="entry">
-        <div class="entry-head">
-          <h3>FRC Team 9644</h3>
-          <time>2023 –</time>
-        </div>
-        <p class="role">Co-founder, Captain &amp; Driver</p>
-        <p>
-          Co-founded a fully student-led robotics team and built it in ten
-          weeks for the 2024 season. Ranked top 5% globally, qualified for the
-          World Championship all three seasons, and won the 2026 New England
-          Championship in my first year as driver and captain. Led software —
-          vision, simulation, and autonomous routines — and raised $150K+ in
-          sponsorships.
-        </p>
-        <img
-          src="/images/frc-winner-2026.jpeg"
-          alt="Vishnu holding the 2026 FIRST Robotics Competition New England winner banner"
-          width="724"
-          height="1086"
-          loading="lazy"
-        />
-      </article>
+    <nav class="cards">
+      {
+        sections.map((s) => (
+          <a class="card" href={s.href}>
+            <div class="entry-head">
+              <h3>{s.title}</h3>
+              <time>{s.time}</time>
+            </div>
+            <p>{s.blurb}</p>
+            <span class="arrow" aria-hidden="true">→</span>
+          </a>
+        ))
+      }
+    </nav>
 
-      <article class="entry">
-        <div class="entry-head">
-          <h3>MIT Day of AI — Gear Grease</h3>
-          <time>2024</time>
-        </div>
-        <p>
-          Led a team of four building a sustainability video game with
-          LLM-driven NPC dialogue. Invited to present at the Boston Museum of
-          Science alongside MIT RAISE director Cynthia Breazeal and Media Lab
-          director Dava Newman, reaching 8,000+ teachers across 110+
-          countries.
-        </p>
-      </article>
+    <h2>Contact</h2>
 
-      <article class="entry">
-        <div class="entry-head">
-          <h3>NEIA School Store</h3>
-          <time>2023 – 2025</time>
-        </div>
-        <p class="role">CEO</p>
-        <p>
-          Scaled a student-run store from zero to $25,000+ in annual revenue
-          at full profitability, leading a team of seven. Built the website,
-          product catalog, and payment infrastructure, and expanded from
-          digital-only to a physical storefront.
-        </p>
-      </article>
-
-      <h2>Publications</h2>
-
-      <article class="entry">
-        <h3>
-          <a href="https://doi.org/10.1145/3776734.3794408"
-            >Do Robots Need Body Language? Comparing Communication Modalities
-            for Legible Motion Intent in Human-Shared Spaces</a
-          >
-        </h3>
-        <p class="pub-authors">
-          J. Cohen, K. Shimizu, <strong>V. Bharath</strong>, Y. Song, K.
-          Larson, P. Maes — ACM/IEEE HRI ’26
-        </p>
-        <p>
-          Expressive motor behaviors for legged robots that communicate intent
-          through motion and posture in urban, human-shared spaces.
-        </p>
-      </article>
-
-      <h2>Contact</h2>
-
-      <ul class="contact-list">
-        <li>
-          <a href="mailto:mr.vishnubharath@gmail.com"
-            >mr.vishnubharath@gmail.com</a
-          >
-        </li>
-      </ul>
-    </main>
-
-    <footer>Vishnu Bharath — Massachusetts</footer>
-  </body>
-</html>
+    <ul class="contact-list">
+      <li>
+        <a href="mailto:mr.vishnubharath@gmail.com"
+          >mr.vishnubharath@gmail.com</a
+        >
+      </li>
+    </ul>
+  </main>
+</Base>
