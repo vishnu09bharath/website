@@ -365,20 +365,6 @@ a:hover {
   margin-top: 2.5rem;
 }
 
-/* Work page: content with the résumé as a right-hand sidebar (contained
-   within the page width, unlike .publication-layout which bleeds right). */
-.work-layout {
-  display: grid;
-  gap: 2rem;
-  align-items: start;
-}
-
-@media (min-width: 680px) {
-  .work-layout {
-    grid-template-columns: minmax(0, 1fr) 7rem;
-  }
-}
-
 .resume-sidebar div {
   margin-bottom: 0;
 }

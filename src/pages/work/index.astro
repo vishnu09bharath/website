@@ -27,38 +27,51 @@ const sections = [
   </header>
 
   <main>
-    <nav class="cards" aria-label="Work">
-      {
-        sections.map((s) => (
-          <a class="card" href={s.href}>
-            <div class="entry-head">
-              <h3>{s.title}</h3>
-              <time>{s.time}</time>
-            </div>
-            <p>{s.blurb}</p>
-            <span class="arrow" aria-hidden="true">→</span>
-          </a>
-        ))
-      }
-    </nav>
+    <div class="publication-layout">
+      <div class="publication-main">
+        <nav class="cards" aria-label="Work">
+          {
+            sections.map((s) => (
+              <a class="card" href={s.href}>
+                <div class="entry-head">
+                  <h3>{s.title}</h3>
+                  <time>{s.time}</time>
+                </div>
+                <p>{s.blurb}</p>
+                <span class="arrow" aria-hidden="true">→</span>
+              </a>
+            ))
+          }
+        </nav>
 
-    <h2>Publications</h2>
+        <h2>Publications</h2>
 
-    <article class="entry">
-      <div class="entry-head">
-        <h3>
-          <a href="/work/robot-body-language/"
-            >Do Robots Need Body Language? Comparing Communication Modalities
-            for Legible Motion Intent in Human-Shared Spaces</a
-          >
-        </h3>
-        <time>2026</time>
+        <article class="entry">
+          <div class="entry-head">
+            <h3>
+              <a href="/work/robot-body-language/"
+                >Do Robots Need Body Language? Comparing Communication
+                Modalities for Legible Motion Intent in Human-Shared Spaces</a
+              >
+            </h3>
+            <time>2026</time>
+          </div>
+          <p class="pub-authors">
+            J. Cohen, K. Shimizu, <strong>V. Bharath</strong>, Y. Song, K.
+            Larson, P. Maes
+          </p>
+          <p class="pub-authors">ACM/IEEE HRI ’26</p>
+        </article>
       </div>
-      <p class="pub-authors">
-        J. Cohen, K. Shimizu, <strong>V. Bharath</strong>, Y. Song, K. Larson,
-        P. Maes
-      </p>
-      <p class="pub-authors">ACM/IEEE HRI ’26</p>
-    </article>
+
+      <aside class="publication-sidebar resume-sidebar" aria-label="Résumé">
+        <dl>
+          <div>
+            <dt>Résumé</dt>
+            <dd><a href="/resume.pdf" target="_blank" rel="noopener">PDF (05.11.26)</a></dd>
+          </div>
+        </dl>
+      </aside>
+    </div>
   </main>
 </Base>
