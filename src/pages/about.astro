@@ -1,12 +1,15 @@
 ---
 import Base from "../layouts/Base.astro";
 import SectionTaskbar from "../components/SectionTaskbar.astro";
+import Globe from "../components/Globe.astro";
 
 const description =
   "About Vishnu Bharath, a student researcher and robotics team founder.";
 ---
 
 <Base title="About — Vishnu Bharath" description={description} back>
+  <Globe />
+
   <header>
     <h1>About</h1>
     <p class="tagline">Student researcher, builder, and robotics team founder.</p>

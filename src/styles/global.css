@@ -38,6 +38,10 @@ body {
   padding: 5rem 1.5rem 4rem;
 }
 
+header {
+  text-align: center;
+}
+
 h1 {
   font-size: 1.15rem;
   font-weight: 600;
@@ -257,10 +261,12 @@ a:hover {
   text-decoration: none;
   opacity: 0;
   animation: cue-in 1.6s ease 1.3s forwards;
+  pointer-events: none;
 }
 
 .scroll-cue span {
   display: inline-block;
+  pointer-events: auto;
   animation: cue-bob 2.2s ease-in-out 1s infinite;
 }
 
@@ -291,14 +297,8 @@ a:hover {
 
 .cards {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 0.75rem;
-}
-
-@media (max-width: 540px) {
-  .cards {
-    grid-template-columns: 1fr;
-  }
 }
 
 .card {
@@ -502,6 +502,41 @@ a:hover {
 
 .contact-list li {
   margin-bottom: 0.4rem;
+}
+
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+::view-transition-old(root) {
+  animation: fade-out 0.18s ease forwards;
+}
+
+::view-transition-new(root) {
+  animation: fade-slide-in 0.25s ease forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation: none;
+  }
 }
 
 footer {

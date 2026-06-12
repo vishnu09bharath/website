@@ -1,0 +1,542 @@
+---
+// Grayscale wireframe globe: meridian/parallel grid with opaque landmasses
+// and a pulsing blue dot at the current location (Boston). Rendered on a
+// canvas with an orthographic projection that slowly rotates about the pole.
+// Click to reveal a live status panel and draw a great-circle arc to Hangzhou.
+---
+
+<div class="globe-stage">
+  <button
+    class="globe"
+    type="button"
+    aria-pressed="false"
+    aria-label="Globe — click for current location and time"
+  >
+    <canvas class="globe-canvas"></canvas>
+  </button>
+
+  <div class="globe-status" aria-hidden="true">
+    <dl>
+      <div>
+        <dt>Location</dt>
+        <dd>Boston</dd>
+      </div>
+      <div>
+        <dt>Time</dt>
+        <dd class="globe-clock" aria-live="off">--:--:--</dd>
+      </div>
+      <div>
+        <dt>Next</dt>
+        <dd>
+          Hangzhou, China
+          <span class="globe-next-eta"
+            >in <span class="globe-countdown" aria-live="off"
+              >--:--:--:--</span
+            ></span
+          >
+        </dd>
+      </div>
+    </dl>
+  </div>
+</div>
+
+<style>
+  .globe-stage {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin: 0 auto 1.5rem;
+    transition: gap 0.5s ease;
+  }
+  .globe-stage.open {
+    gap: clamp(1rem, 5vw, 2.25rem);
+  }
+
+  .globe {
+    flex: 0 0 auto;
+    width: clamp(150px, 38vw, 220px);
+    aspect-ratio: 1;
+    padding: 0;
+    border: 0;
+    background: none;
+    cursor: pointer;
+    transition:
+      transform 0.35s ease,
+      width 0.5s ease;
+    -webkit-tap-highlight-color: transparent;
+  }
+  /* Scale only on real pointer devices, and only while the globe is at rest
+     (closed and not mid-transition) — otherwise hover flips as the globe
+     slides under a stationary cursor and the scale jitters. */
+  @media (hover: hover) {
+    .globe-stage:not(.open):not(.busy) .globe:hover {
+      transform: scale(1.05);
+    }
+  }
+  .globe:focus-visible {
+    outline: 2px solid rgba(47, 129, 247, 0.6);
+    outline-offset: 4px;
+    border-radius: 50%;
+  }
+  .globe-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .globe-status {
+    flex: 0 1 auto;
+    max-width: 0;
+    opacity: 0;
+    overflow: hidden;
+    text-align: left;
+    transition:
+      max-width 0.6s ease,
+      opacity 0.45s ease;
+  }
+  .globe-stage.open .globe-status {
+    max-width: clamp(140px, 42vw, 220px);
+    opacity: 1;
+  }
+
+  /* On mobile the globe is large by default and shrinks when tapped open so
+     the status panel fits beside it. */
+  @media (max-width: 560px) {
+    .globe {
+      width: min(72vw, 300px);
+    }
+    .globe-stage.open .globe {
+      width: min(40vw, 170px);
+    }
+    .globe-stage.open .globe-status {
+      max-width: min(48vw, 200px);
+    }
+  }
+
+  .globe-status dl {
+    margin: 0;
+    display: grid;
+    gap: 0.65rem;
+  }
+  .globe-status dt {
+    margin: 0;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--muted);
+  }
+  .globe-status dd {
+    margin: 0.1rem 0 0;
+    font-size: 0.95rem;
+    color: var(--fg);
+    white-space: nowrap;
+  }
+  .globe-clock {
+    font-variant-numeric: tabular-nums;
+  }
+  .globe-next-eta {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    white-space: normal;
+  }
+  .globe-countdown {
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+
+<script>
+  // Locations
+  const HOME = { lon: -71.0589, lat: 42.3601 }; // Boston, MA
+  const DEST = { lon: 120.1551, lat: 30.2741 }; // Hangzhou, China
+
+  const PHI0 = (18 * Math.PI) / 180; // fixed viewing tilt
+  const sinP = Math.sin(PHI0);
+  const cosP = Math.cos(PHI0);
+  const DEG = Math.PI / 180;
+
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Module-level: persists across View Transition navigations so the land mask
+  // is fetched only once, and the active RAF can be cancelled before a swap.
+  let activeRaf = 0;
+
+  // Shared interaction state (mutated by the click handler, read by the loop).
+  const state = { open: false, openedAt: 0 };
+
+  function daysToJul5() {
+    const now = new Date();
+    let t = new Date(now.getFullYear(), 6, 5);
+    if (t.getTime() - now.getTime() < 0) t = new Date(now.getFullYear() + 1, 6, 5);
+    return Math.max(0, Math.ceil((t.getTime() - now.getTime()) / 86400000));
+  }
+
+  // Equirectangular land mask, built once from the bundled outline data.
+  const MW = 1440;
+  const MH = 720;
+  let mask: Uint8Array | null = null;
+
+  async function buildMask() {
+    const polys: number[][][] = await fetch("/data/land.json").then((r) =>
+      r.json(),
+    );
+    const off = document.createElement("canvas");
+    off.width = MW;
+    off.height = MH;
+    const o = off.getContext("2d")!;
+    o.fillStyle = "#000";
+    for (const ring of polys) {
+      o.beginPath();
+      for (let i = 0; i < ring.length; i++) {
+        const x = ((ring[i][0] + 180) / 360) * MW;
+        const y = ((90 - ring[i][1]) / 180) * MH;
+        if (i === 0) o.moveTo(x, y);
+        else o.lineTo(x, y);
+      }
+      o.closePath();
+      o.fill();
+    }
+    const d = o.getImageData(0, 0, MW, MH).data;
+    const m = new Uint8Array(MW * MH);
+    for (let i = 0; i < m.length; i++) m[i] = d[i * 4 + 3] > 128 ? 1 : 0;
+    mask = m;
+  }
+
+  function init(canvas: HTMLCanvasElement) {
+    const ctx = canvas.getContext("2d")!;
+
+    // theme-aware grayscale tones
+    const cs = getComputedStyle(document.documentElement);
+    const dark =
+      window.matchMedia("(prefers-color-scheme: dark)").matches ||
+      cs.getPropertyValue("--bg").trim().startsWith("#1");
+    const LAND = dark ? [205, 205, 205] : [70, 70, 70];
+    const GRID = dark ? "rgba(200,200,200," : "rgba(60,60,60,";
+    const RIM = dark ? "rgba(200,200,200,0.35)" : "rgba(60,60,60,0.3)";
+    const BLUE = "47,129,247";
+
+    let R = 1,
+      cx = 0,
+      cy = 0,
+      dpr = 1;
+
+    // Per-pixel precomputed geometry of the visible disk (lat fixed per pixel;
+    // only longitude shifts as the globe spins, so frames need no trig).
+    let px: Int32Array = new Int32Array(0); // index into ImageData (×4)
+    let pRow: Int32Array = new Int32Array(0); // mask row offset (latRow×MW)
+    let pAng: Float32Array = new Float32Array(0); // base longitude in mask cols
+    let pShade: Float32Array = new Float32Array(0); // sphere shading 0..1
+    let buf: ImageData | null = null;
+    let landCanvas: HTMLCanvasElement;
+    let landCtx: CanvasRenderingContext2D;
+
+    function layout() {
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const s = Math.round(canvas.clientWidth * dpr);
+      canvas.width = s;
+      canvas.height = s;
+      cx = s / 2;
+      cy = s / 2;
+      R = s / 2 - dpr; // leave room for the rim stroke
+
+      landCanvas = document.createElement("canvas");
+      landCanvas.width = s;
+      landCanvas.height = s;
+      landCtx = landCanvas.getContext("2d")!;
+      buf = landCtx.createImageData(s, s);
+
+      const idx: number[] = [];
+      const row: number[] = [];
+      const ang: number[] = [];
+      const sh: number[] = [];
+      for (let y = 0; y < s; y++) {
+        for (let x = 0; x < s; x++) {
+          const nx = (x + 0.5 - cx) / R;
+          const ny = -(y + 0.5 - cy) / R;
+          const rho = Math.hypot(nx, ny);
+          if (rho > 1) continue;
+          const c = Math.asin(Math.min(1, rho));
+          const sinc = Math.sin(c);
+          const cosc = Math.cos(c); // == z (depth)
+          // latitude is independent of the spin angle
+          const lat =
+            rho < 1e-6
+              ? PHI0
+              : Math.asin(cosc * sinP + (ny * sinc * cosP) / rho);
+          // base longitude offset (spin angle added per frame)
+          const ang0 = Math.atan2(nx * sinc, rho * cosc * cosP - ny * sinc * sinP);
+          let latRow = Math.floor(((Math.PI / 2 - lat) / Math.PI) * MH);
+          latRow = Math.max(0, Math.min(MH - 1, latRow));
+          idx.push((y * s + x) * 4);
+          row.push(latRow * MW);
+          ang.push((ang0 / (2 * Math.PI)) * MW); // in mask columns
+          sh.push(0.6 + 0.4 * cosc);
+        }
+      }
+      px = Int32Array.from(idx);
+      pRow = Int32Array.from(row);
+      pAng = Float32Array.from(ang);
+      pShade = Float32Array.from(sh);
+    }
+
+    // Forward orthographic projection for vector overlays (grid, arc, dots).
+    function project(lon: number, lat: number, lam: number) {
+      const l = (lon - lam) * DEG;
+      const p = lat * DEG;
+      const cosp = Math.cos(p);
+      const z = sinP * Math.sin(p) + cosP * cosp * Math.cos(l);
+      const sx = cx + R * (cosp * Math.sin(l));
+      const sy = cy - R * (cosP * Math.sin(p) - sinP * cosp * Math.cos(l));
+      return { sx, sy, z };
+    }
+
+    function drawGraticule(lam: number) {
+      ctx.lineWidth = dpr;
+      for (let lon = -180; lon < 180; lon += 30) {
+        let pen = false;
+        ctx.beginPath();
+        for (let lat = -85; lat <= 85; lat += 2) {
+          const p = project(lon, lat, lam);
+          if (p.z >= 0) {
+            if (!pen) {
+              ctx.moveTo(p.sx, p.sy);
+              pen = true;
+            } else ctx.lineTo(p.sx, p.sy);
+          } else pen = false;
+        }
+        ctx.strokeStyle = GRID + "0.5)";
+        ctx.stroke();
+      }
+      for (let lat = -60; lat <= 60; lat += 30) {
+        let pen = false;
+        ctx.beginPath();
+        for (let lon = -180; lon <= 180; lon += 2) {
+          const p = project(lon, lat, lam);
+          if (p.z >= 0) {
+            if (!pen) {
+              ctx.moveTo(p.sx, p.sy);
+              pen = true;
+            } else ctx.lineTo(p.sx, p.sy);
+          } else pen = false;
+        }
+        ctx.strokeStyle = GRID + (lat === 0 ? "0.5)" : "0.32)");
+        ctx.stroke();
+      }
+    }
+
+    function drawLand(lam: number) {
+      if (!mask || !buf) return;
+      const data = buf.data;
+      data.fill(0);
+      // +MW/2 restores the mask's -180° longitude origin; +MW*1000 keeps the
+      // modulo positive.
+      const colShift = (lam / 360) * MW + MW / 2 + MW * 1000;
+      for (let i = 0; i < px.length; i++) {
+        let col = (pAng[i] + colShift) % MW | 0;
+        if (mask[pRow[i] + col]) {
+          const o = px[i];
+          const sh = pShade[i];
+          data[o] = LAND[0] * sh;
+          data[o + 1] = LAND[1] * sh;
+          data[o + 2] = LAND[2] * sh;
+          data[o + 3] = 255;
+        }
+      }
+      landCtx.putImageData(buf, 0, 0);
+      ctx.drawImage(landCanvas, 0, 0);
+    }
+
+    function dot(sx: number, sy: number, r: number, fill: string) {
+      ctx.beginPath();
+      ctx.arc(sx, sy, r, 0, Math.PI * 2);
+      ctx.fillStyle = fill;
+      ctx.fill();
+    }
+
+    function pulseDot(sx: number, sy: number, t: number) {
+      const base = Math.max(3.5, R * 0.034);
+      if (!reduce) {
+        const phase = (t % 2200) / 2200;
+        dot(sx, sy, base + phase * R * 0.13, `rgba(${BLUE},${0.32 * (1 - phase)})`);
+      }
+      dot(sx, sy, base, `rgb(${BLUE})`);
+    }
+
+    function drawHome(lam: number, t: number) {
+      const p = project(HOME.lon, HOME.lat, lam);
+      if (p.z >= 0) pulseDot(p.sx, p.sy, t);
+    }
+
+    // Connecting line from Boston to Hangzhou, revealed progressively. Runs
+    // along the latitudes (linear lon/lat interpolation by the shorter way
+    // around) rather than the great circle over the pole.
+    const DLON = ((DEST.lon - HOME.lon + 540) % 360) - 180;
+    const arcPoint = (t: number) => ({
+      lon: HOME.lon + DLON * t,
+      lat: HOME.lat + (DEST.lat - HOME.lat) * t,
+    });
+
+    const ARC_START_T = 0.03; // skip the first dash so it clears the Boston dot
+
+    function drawArc(lam: number, t: number) {
+      const N = 160;
+      const startI = Math.ceil(ARC_START_T * N);
+
+      // slow fade-in for the line + countdown box when the globe is opened
+      const FADE = 200; // ms
+      const fade = reduce
+        ? 1
+        : Math.max(0, Math.min(1, (t - state.openedAt) / FADE));
+
+      // dashed connecting line
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.setLineDash([4 * dpr, 9 * dpr]);
+      ctx.lineCap = "round";
+      ctx.lineWidth = 3.15 * dpr; // 25% thinner than before
+      ctx.strokeStyle = `rgb(${BLUE})`;
+      ctx.beginPath();
+      let pen = false;
+      for (let i = startI; i <= N; i++) {
+        const q = arcPoint(i / N);
+        const p = project(q.lon, q.lat, lam);
+        if (p.z >= 0) {
+          if (!pen) {
+            ctx.moveTo(p.sx, p.sy);
+            pen = true;
+          } else ctx.lineTo(p.sx, p.sy);
+        } else pen = false;
+      }
+      ctx.stroke();
+      ctx.restore();
+
+      // Hangzhou marker (same pulse as Boston)
+      const d = project(DEST.lon, DEST.lat, lam);
+      if (d.z >= 0) pulseDot(d.sx, d.sy, t);
+
+      // Countdown box mapped onto the midpoint of the line. It disappears
+      // before reaching the limb so it is never drawn cut off.
+      const m = arcPoint(0.5);
+      const mp = project(m.lon, m.lat, lam);
+      if (mp.z > 0.22) {
+        const days = daysToJul5();
+        const big = `${days} ${days === 1 ? "day" : "days"}`;
+        ctx.save();
+        ctx.globalAlpha = fade;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.font = `600 ${12 * dpr}px ui-sans-serif, system-ui, sans-serif`;
+        const w = ctx.measureText(big).width + 16 * dpr;
+        const h = 22 * dpr;
+        ctx.fillStyle = `rgb(${BLUE})`;
+        ctx.beginPath();
+        ctx.roundRect(mp.sx - w / 2, mp.sy - h / 2, w, h, 6 * dpr);
+        ctx.fill();
+        ctx.fillStyle = "#fff";
+        ctx.fillText(big, mp.sx, mp.sy + 0.5 * dpr);
+        ctx.restore();
+      }
+    }
+
+    let lam = HOME.lon; // start with Boston facing the viewer
+    let last = performance.now();
+    function frame(now: number) {
+      const dt = now - last;
+      last = now;
+      if (!reduce) lam -= dt * 0.006; // slow eastward spin (deg/ms)
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGraticule(lam);
+      drawLand(lam);
+      ctx.beginPath();
+      ctx.arc(cx, cy, R, 0, Math.PI * 2);
+      ctx.strokeStyle = RIM;
+      ctx.lineWidth = dpr;
+      ctx.stroke();
+      if (state.open) drawArc(lam, now);
+      drawHome(lam, now);
+      activeRaf = requestAnimationFrame(frame);
+    }
+
+    layout();
+    cancelAnimationFrame(activeRaf);
+    activeRaf = requestAnimationFrame(frame);
+
+    let rt = 0;
+    window.addEventListener("resize", () => {
+      window.clearTimeout(rt);
+      rt = window.setTimeout(layout, 150);
+    });
+  }
+
+  // Cancel the RAF loop before the DOM is swapped away so we don't keep
+  // painting to a detached canvas on subsequent navigations.
+  document.addEventListener("astro:before-swap", () => {
+    cancelAnimationFrame(activeRaf);
+    activeRaf = 0;
+  });
+
+  // Re-run all DOM setup after every View Transition (fires on first load too).
+  document.addEventListener("astro:page-load", () => {
+    const stage = document.querySelector<HTMLElement>(".globe-stage");
+    const globeBtn = document.querySelector<HTMLButtonElement>(".globe");
+    const statusEl = document.querySelector<HTMLElement>(".globe-status");
+    const clockEl = document.querySelector<HTMLElement>(".globe-clock");
+    const countdownEl = document.querySelector<HTMLElement>(".globe-countdown");
+
+    if (!stage) return; // not on the About page
+
+    if (clockEl || countdownEl) {
+      const fmt = new Intl.DateTimeFormat("en-US", {
+        timeZone: "America/New_York",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: false,
+      });
+      const pad = (n: number) => String(n).padStart(2, "0");
+      const tick = () => {
+        const now = new Date();
+        if (clockEl) clockEl.textContent = fmt.format(now);
+        if (countdownEl) {
+          let target = new Date(now.getFullYear(), 6, 5); // July 5
+          if (target.getTime() <= now.getTime())
+            target = new Date(now.getFullYear() + 1, 6, 5);
+          let s = Math.max(0, Math.floor((target.getTime() - now.getTime()) / 1000));
+          const dd = Math.floor(s / 86400);
+          s -= dd * 86400;
+          const hh = Math.floor(s / 3600);
+          s -= hh * 3600;
+          const mm = Math.floor(s / 60);
+          s -= mm * 60;
+          countdownEl.textContent = `${pad(dd)}:${pad(hh)}:${pad(mm)}:${pad(s)}`;
+        }
+      };
+      tick();
+      setInterval(tick, 1000);
+    }
+
+    if (globeBtn && statusEl) {
+      let busyTimer = 0;
+      globeBtn.addEventListener("click", () => {
+        state.open = !state.open;
+        if (state.open) state.openedAt = performance.now();
+        stage.classList.toggle("open", state.open);
+        globeBtn.setAttribute("aria-pressed", String(state.open));
+        statusEl.setAttribute("aria-hidden", String(!state.open));
+        // suppress hover-scaling until the open/close animation settles
+        stage.classList.add("busy");
+        window.clearTimeout(busyTimer);
+        busyTimer = window.setTimeout(() => stage.classList.remove("busy"), 650);
+      });
+    }
+
+    const canvas = document.querySelector<HTMLCanvasElement>(".globe-canvas");
+    if (canvas) {
+      if (mask) init(canvas);
+      else buildMask().then(() => init(canvas));
+    }
+  });
+</script>

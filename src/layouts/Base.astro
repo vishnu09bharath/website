@@ -1,5 +1,6 @@
 ---
 import "../styles/global.css";
+import { ViewTransitions } from "astro:transitions";
 
 interface Props {
   title: string;
@@ -23,6 +24,7 @@ const year = new Date().getFullYear();
     <meta property="og:description" content={description} />
     <meta property="og:type" content="website" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <ViewTransitions />
   </head>
   <body>
     {back && <a class="back" href={backHref}>← Back</a>}
