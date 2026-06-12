@@ -150,7 +150,7 @@ a:hover {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 20svh;
+  height: 22svh;
   background: linear-gradient(to bottom, transparent, var(--bg));
   pointer-events: none;
 }
@@ -167,15 +167,15 @@ a:hover {
   bottom: 1rem;
   text-align: center;
   color: var(--fg);
-  font-size: 1.5rem;
+  font-size: 1.65rem;
   text-decoration: none;
   opacity: 0;
-  animation: cue-in 0.8s ease 1.5s forwards;
+  animation: cue-in 0.8s ease 1s forwards;
 }
 
 .scroll-cue span {
   display: inline-block;
-  animation: cue-bob 2.2s ease-in-out 1.5s infinite;
+  animation: cue-bob 2.2s ease-in-out 1s infinite;
 }
 
 @keyframes cue-in {
