@@ -1,0 +1,76 @@
+---
+import "../styles/global.css";
+import { navItems, profile, sections } from "@data/portfolio";
+
+const buildDate = new Date().toISOString();
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="The personal site of Vishnu Bharath: robotics, research, ventures, and selected work."
+    />
+    <title>{profile.name}</title>
+  </head>
+  <body>
+    <main id="top">
+      <section class="landing" aria-label="Home">
+        <img class="landing-image" src="/images/frc-pit-portrait-obfuscated.png" alt="" />
+        <div class="landing-scrim" aria-hidden="true"></div>
+
+        <header class="masthead">
+          <a class="nameplate" href="#top">{profile.name}</a>
+          <p>{profile.tagline}</p>
+        </header>
+
+        <nav class="primary-nav" aria-label="Primary navigation">
+          {navItems.map(item => (
+            <a data-track-nav href={item.href}>{item.label}<span aria-hidden="true">-></span></a>
+          ))}
+        </nav>
+
+        <div class="social-links" aria-label="Contact links">
+          {profile.links.map(link => (
+            <a data-track-link href={link.href}>{link.label}</a>
+          ))}
+        </div>
+      </section>
+
+      <div class="content-shell">
+        {sections.map(section => (
+          <section class="content-section" id={section.id}>
+            <div class="section-label">
+              <span>{section.kicker}</span>
+              <h2>{section.title}</h2>
+            </div>
+            <div class="entry-list">
+              {section.entries.map(entry => (
+                <article class="entry">
+                  <p class="entry-meta">{entry.meta}</p>
+                  <h3>{entry.title}</h3>
+                  <p>{entry.text}</p>
+                </article>
+              ))}
+            </div>
+          </section>
+        ))}
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>{profile.name} / <span id="buildDate"></span></p>
+      <a href="#top">top</a>
+    </footer>
+
+    <script is:inline define:vars={{ buildDate }}>
+      document.getElementById("buildDate").textContent = new Date(buildDate).getFullYear();
+    </script>
+    <script>
+      import "../scripts/portfolio";
+    </script>
+  </body>
+</html>
