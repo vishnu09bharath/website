@@ -18,11 +18,20 @@ const description =
 
     <img
       class="hero"
-      src="/images/hero-pit.jpg"
+      src="/images/hero-base.jpg"
       alt="Vishnu standing at the driver station during a FIRST Robotics Competition match"
       width="2400"
       height="1600"
       fetchpriority="high"
+    />
+    <canvas class="pixel-fx" aria-hidden="true"></canvas>
+    <img
+      class="hero-foreground"
+      src="/images/hero-foreground.png"
+      alt=""
+      width="2400"
+      height="1600"
+      aria-hidden="true"
     />
     <header class="hero-header">
       <h1>Vishnu Bharath</h1>
@@ -53,3 +62,249 @@ const description =
     <SectionTaskbar />
   </main>
 </Base>
+
+<script>
+  // Animated grayscale "censor" over the three bystander faces in the hero
+  // photo (the base image is uncensored, so this overlay is the only thing
+  // hiding them). Each face is an ellipse in the image's own pixel space, so
+  // the blocks stay locked to the faces no matter how the cover-crop reframes
+  // across viewports. We tile each ellipse with opaque grayscale blocks that
+  // cycle through gray values to read as a live pixelation.
+  const NW = 2400;
+  const NH = 1600;
+  const POS_X = 0.5; // object-position of .hero
+  const POS_Y = 0.42;
+  const B = 22; // render block size, in natural image pixels
+
+  // Face ellipses in natural image coords {cx, cy, rx, ry}.
+  const FACES = [
+    { cx: 691, cy: 1140, rx: 82, ry: 88 }, // behind glass, left (RoboTigers)
+    { cx: 924, cy: 1045, rx: 74, ry: 82 }, // behind glass, left of Vishnu
+    { cx: 1448, cy: 1124, rx: 76, ry: 104 }, // person right of Vishnu
+  ];
+
+  const canvas = document.querySelector(".pixel-fx") as HTMLCanvasElement | null;
+  const img = document.querySelector(".hero") as HTMLImageElement | null;
+
+  if (canvas && img) {
+    const ctx = canvas.getContext("2d")!;
+
+    let blocks: {
+      nx: number;
+      ny: number;
+      period: number;
+      offset: number;
+      base: number;
+    }[] = [];
+    let view = { scale: 1, ox: 0, oy: 0, dpr: 1 };
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const AMP = 16; // how far a block may drift from its underlying gray
+
+    const hash = (n: number) => {
+      n = (n ^ 61) ^ (n >>> 16);
+      n = n + (n << 3);
+      n = n ^ (n >>> 4);
+      n = Math.imul(n, 0x27d4eb2d);
+      n = n ^ (n >>> 15);
+      return n >>> 0;
+    };
+
+    // Tile each face ellipse with blocks whose center falls inside it, so the
+    // censor takes a rounded, head-like shape rather than a hard rectangle.
+    // Then dilate the selection by one block (8-neighbor) so every censor
+    // carries a one-pixel-wider outer border.
+    function build() {
+      blocks = [];
+      const cells = new Set<string>();
+      for (const f of FACES) {
+        const c0 = Math.floor((f.cx - f.rx) / B);
+        const c1 = Math.ceil((f.cx + f.rx) / B);
+        const r0 = Math.floor((f.cy - f.ry) / B);
+        const r1 = Math.ceil((f.cy + f.ry) / B);
+        for (let r = r0; r <= r1; r++) {
+          for (let c = c0; c <= c1; c++) {
+            const dx = (c * B + B / 2 - f.cx) / f.rx;
+            const dy = (r * B + B / 2 - f.cy) / f.ry;
+            if (dx * dx + dy * dy > 1) continue;
+            cells.add(c + "," + r);
+          }
+        }
+      }
+      const grown = new Set<string>();
+      for (const key of cells) {
+        const [c, r] = key.split(",").map(Number);
+        for (let dr = -1; dr <= 1; dr++) {
+          for (let dc = -1; dc <= 1; dc++) {
+            grown.add(c + dc + "," + (r + dr));
+          }
+        }
+      }
+      for (const key of grown) {
+        const [c, r] = key.split(",").map(Number);
+        blocks.push({
+          nx: c * B,
+          ny: r * B,
+          period: 350 + (hash(r * 31 + c * 7 + 11) % 550),
+          offset: hash(c * 53 + r * 17 + 7) % 1000,
+          base: 128,
+        });
+      }
+    }
+
+    // Read the underlying gray for each block so its animation can drift only
+    // a little around the real tone instead of flashing across the full range.
+    function sample() {
+      if (!img!.complete || !img!.naturalWidth) return;
+      const off = document.createElement("canvas");
+      off.width = NW;
+      off.height = NH;
+      const octx = off.getContext("2d", { willReadFrequently: true })!;
+      octx.drawImage(img!, 0, 0, NW, NH);
+      for (const b of blocks) {
+        const x = Math.min(Math.max(b.nx, 0), NW - B);
+        const y = Math.min(Math.max(b.ny, 0), NH - B);
+        const d = octx.getImageData(x, y, B, B).data;
+        let sum = 0;
+        let n = 0;
+        for (let i = 0; i < d.length; i += 4) {
+          sum += d[i];
+          n++;
+        }
+        b.base = sum / n;
+      }
+    }
+
+    // Recompute the object-fit:cover transform from natural -> CSS pixels.
+    function layout() {
+      const w = canvas!.clientWidth;
+      const h = canvas!.clientHeight;
+      const dpr = window.devicePixelRatio || 1;
+      canvas!.width = Math.round(w * dpr);
+      canvas!.height = Math.round(h * dpr);
+      const scale = Math.max(w / NW, h / NH);
+      view = {
+        scale,
+        ox: (w - NW * scale) * POS_X,
+        oy: (h - NH * scale) * POS_Y,
+        dpr,
+      };
+    }
+
+    function paint(now: number) {
+      const { scale, ox, oy, dpr } = view;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, canvas!.width, canvas!.height);
+      const size = B * scale + 1;
+      for (let i = 0; i < blocks.length; i++) {
+        const b = blocks[i];
+        const step = reduce ? 0 : Math.floor((now + b.offset) / b.period);
+        const drift = (hash(i * 2654435761 + step) % (2 * AMP + 1)) - AMP;
+        const g = Math.max(0, Math.min(255, Math.round(b.base + drift)));
+        ctx.fillStyle = `rgb(${g},${g},${g})`;
+        ctx.fillRect(ox + b.nx * scale, oy + b.ny * scale, size, size);
+      }
+    }
+
+    let raf = 0;
+    function loop(now: number) {
+      paint(now);
+      raf = requestAnimationFrame(loop);
+    }
+
+    function start() {
+      layout();
+      build();
+      sample();
+      cancelAnimationFrame(raf);
+      if (reduce) paint(0);
+      else raf = requestAnimationFrame(loop);
+    }
+
+    // The censor is pure geometry and does not depend on the photo decoding,
+    // so paint it right away (with a neutral gray) — that way the faces are
+    // never exposed in the window between the image rendering and this script
+    // running. Once the photo decodes, resample so each block hugs its real
+    // underlying tone.
+    start();
+    if (!img.complete || !img.naturalWidth) {
+      img.addEventListener(
+        "load",
+        () => {
+          sample();
+          if (reduce) paint(0);
+        },
+        { once: true },
+      );
+    }
+
+    let resizeTimer = 0;
+    window.addEventListener("resize", () => {
+      window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(() => {
+        layout();
+        if (reduce) paint(0);
+      }, 120);
+    });
+  }
+</script>
+
+<script>
+  // On load, "form" the hero name out of a pixelated scramble: every glyph
+  // flickers through block/glitch characters, then resolves left-to-right into
+  // the real letters. Each letter is locked into its measured width during the
+  // animation so the centered heading doesn't jitter, then handed back to plain
+  // responsive text when finished.
+  const heading = document.querySelector<HTMLElement>(".hero-header h1");
+  const noMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  if (heading && !noMotion && "requestAnimationFrame" in window) {
+    const finalText = heading.textContent ?? "";
+    const glyphs = "▚▞▓▒░█▤▥▦▧#%&0123456789";
+    const pick = () => glyphs[(Math.random() * glyphs.length) | 0];
+
+    heading.setAttribute("aria-label", finalText);
+
+    // Build one fixed-width slot per character so scramble glyphs of varying
+    // width stay centered in place.
+    const slots = [...finalText].map((ch) => {
+      const span = document.createElement("span");
+      span.textContent = ch === " " ? " " : ch;
+      span.style.display = "inline-block";
+      span.style.textAlign = "center";
+      span.setAttribute("aria-hidden", "true");
+      heading.appendChild(span);
+      return { span, ch };
+    });
+    heading.firstChild &&
+      heading.removeChild(heading.firstChild as ChildNode); // drop the SSR text node
+
+    const plan = slots.map((s, i) => {
+      s.span.style.width = `${s.span.getBoundingClientRect().width}px`;
+      if (s.ch !== " ") {
+        s.span.textContent = pick(); // start scrambled, no flash
+        s.span.style.color = "rgb(140,140,140)"; // start gray, brighten as it sets
+      }
+      return { start: i * 42 + Math.random() * 65, dur: 200 + Math.random() * 230 };
+    });
+    const total = Math.max(...plan.map((p) => p.start + p.dur));
+    const t0 = performance.now();
+
+    function frame(now: number) {
+      const t = now - t0;
+      for (let i = 0; i < slots.length; i++) {
+        const { ch, span } = slots[i];
+        if (ch === " ") continue;
+        const { start, dur } = plan[i];
+        const settled = t >= start + dur;
+        span.textContent = settled ? ch : pick();
+        // Ramp each glyph from gray up to white over its own resolve window.
+        const p = Math.max(0, Math.min(1, (t - start) / dur));
+        const g = Math.round(140 + 115 * p);
+        span.style.color = `rgb(${g},${g},${g})`;
+      }
+      if (t < total) requestAnimationFrame(frame);
+      else heading.textContent = finalText; // restore clean, responsive text
+    }
+    requestAnimationFrame(frame);
+  }
+</script>
