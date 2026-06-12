@@ -225,6 +225,22 @@ a:hover {
   pointer-events: none;
 }
 
+.photo-credit {
+  margin: 2rem 0 0;
+  color: var(--muted, rgba(0, 0, 0, 0.55));
+  font-size: 0.75rem;
+}
+
+.photo-credit a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.photo-credit a:hover {
+  color: var(--fg);
+}
+
 .hero-links,
 .scroll-cue {
   z-index: 2;
