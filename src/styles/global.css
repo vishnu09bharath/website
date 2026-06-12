@@ -92,12 +92,37 @@ a:hover {
   color: var(--fg);
 }
 
+.hero-wrap {
+  position: relative;
+  width: 100vw;
+  height: 100svh;
+  margin-left: calc(50% - 50vw);
+  margin-top: -5rem;
+}
+
 .hero {
   display: block;
   width: 100%;
-  height: auto;
-  margin-top: 2.5rem;
-  border-radius: 2px;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 42%;
+}
+
+.hero-header {
+  position: absolute;
+  top: 3rem;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+
+.hero-header h1 {
+  color: #fff;
+  font-size: 1.5rem;
+}
+
+.hero-header .tagline {
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .cards {
