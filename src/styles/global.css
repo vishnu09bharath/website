@@ -126,6 +126,12 @@ a:hover {
   text-decoration-color: #000;
 }
 
+@media (max-width: 540px) {
+  .announcement-prefix {
+    display: none;
+  }
+}
+
 .hero-wrap {
   position: relative;
   width: 100vw;
