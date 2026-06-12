@@ -416,6 +416,62 @@ a:hover {
   margin-top: 0.35rem;
 }
 
+.publication-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.publication-main {
+  margin-bottom: 0;
+}
+
+.publication-sidebar {
+  border-top: 1px solid var(--rule);
+  padding-top: 0.85rem;
+}
+
+.publication-sidebar dl,
+.publication-sidebar dd {
+  margin: 0;
+}
+
+.publication-sidebar div {
+  margin-bottom: 1rem;
+}
+
+.publication-sidebar dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.publication-sidebar dd {
+  font-size: 0.85rem;
+  line-height: 1.35;
+  margin-top: 0.25rem;
+  overflow-wrap: anywhere;
+}
+
+.eyebrow {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  margin-top: 1.5rem;
+  text-transform: uppercase;
+}
+
+@media (min-width: 760px) {
+  .publication-layout {
+    grid-template-columns: minmax(0, 100%) 11rem;
+    width: calc(100% + 13rem);
+  }
+}
+
 .contact-list {
   list-style: none;
   margin: 0;

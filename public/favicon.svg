@@ -1,1 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3 3" shape-rendering="crispEdges"><rect x="0" y="0" width="1" height="1" fill="rgb(53,53,53)"/><rect x="1" y="0" width="1" height="1" fill="rgb(176,176,176)"/><rect x="2" y="0" width="1" height="1" fill="rgb(56,56,56)"/><rect x="0" y="1" width="1" height="1" fill="rgb(171,171,171)"/><rect x="1" y="1" width="1" height="1" fill="rgb(47,47,47)"/><rect x="2" y="1" width="1" height="1" fill="rgb(32,32,32)"/><rect x="0" y="2" width="1" height="1" fill="rgb(35,35,35)"/><rect x="1" y="2" width="1" height="1" fill="rgb(48,48,48)"/><rect x="2" y="2" width="1" height="1" fill="rgb(39,39,39)"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 4" shape-rendering="crispEdges">
+  <rect x="0.5" y="0.5" width="1" height="1" fill="rgb(53,53,53)" />
+  <rect x="1.5" y="0.5" width="1" height="1" fill="rgb(176,176,176)" />
+  <rect x="2.5" y="0.5" width="1" height="1" fill="rgb(56,56,56)" />
+  <rect x="0.5" y="1.5" width="1" height="1" fill="rgb(171,171,171)" />
+  <rect x="1.5" y="1.5" width="1" height="1" fill="rgb(47,47,47)" />
+  <rect x="2.5" y="1.5" width="1" height="1" fill="rgb(32,32,32)" />
+  <rect x="0.5" y="2.5" width="1" height="1" fill="rgb(35,35,35)" />
+  <rect x="1.5" y="2.5" width="1" height="1" fill="rgb(48,48,48)" />
+  <rect x="2.5" y="2.5" width="1" height="1" fill="rgb(39,39,39)" />
+</svg>
