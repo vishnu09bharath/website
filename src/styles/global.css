@@ -135,8 +135,9 @@ a:hover {
 
 .hero-links a {
   color: rgba(255, 255, 255, 0.8);
-  font-size: 0.9rem;
-  text-decoration: none;
+  font-size: 1.05rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
 }
 
 .hero-links a:hover {
