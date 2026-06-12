@@ -6,10 +6,10 @@ const description =
   "Vishnu Bharath — robotics researcher at the MIT Media Lab's City Science group and founding captain of FRC Team 9644.";
 ---
 
-<Base title="Vishnu Bharath" description={description}>
+<Base title="Vishnu Bharath" description={description} showNav={false}>
   <section class="hero-wrap has-announcement">
     <aside class="announcement" aria-label="Announcement">
-      <span><span class="announcement-prefix">Bharath named </span>20 Under 20 New England.</span>
+      <span><span class="announcement-prefix">Vishnu named </span>20 Under 20 New England.</span>
       <a
         href="https://indianewengland.com/india-new-england-news-announces-20-under-20-stars-list-for-2026/#vishnubharath"
         >Read more →</a
@@ -37,13 +37,13 @@ const description =
       <h1>Vishnu Bharath</h1>
     </header>
     <ul class="hero-links">
+      <li><a href="https://github.com/vishnu09bharath">github</a></li>
       <li>
         <a href="https://www.linkedin.com/in/vishnu-bharath-383a24285/"
           >linkedin</a
         >
       </li>
-      <li><a href="mailto:mr.vishnubharath@gmail.com">email</a></li>
-      <li><a href="https://github.com/vishnu09bharath">github</a></li>
+      <li><a href="https://x.com/vishnusbharath">twitter</a></li>
     </ul>
     <a class="scroll-cue" href="#sections" aria-label="Scroll to content">
       <span>↓</span>
@@ -91,10 +91,17 @@ I’m especially interested in how robots can navigate real-world environments,
     { cx: 1448, cy: 1124, rx: 76, ry: 104 }, // person right of Vishnu
   ];
 
-  const canvas = document.querySelector(".pixel-fx") as HTMLCanvasElement | null;
-  const img = document.querySelector(".hero") as HTMLImageElement | null;
+  // Re-runs on every View Transition navigation (and initial load); the censor
+  // is the only thing hiding the bystanders' faces, so it must re-init when the
+  // home DOM is recreated. RAF/resize handles live at module scope so the loop
+  // from the outgoing page can be torn down before the swap.
+  let pixelRaf = 0;
+  let pixelResize: (() => void) | null = null;
 
-  if (canvas && img) {
+  function initPixelFx() {
+    const canvas = document.querySelector(".pixel-fx") as HTMLCanvasElement | null;
+    const img = document.querySelector(".hero") as HTMLImageElement | null;
+    if (!canvas || !img) return;
     const ctx = canvas.getContext("2d")!;
 
     let blocks: {
@@ -213,19 +220,18 @@ I’m especially interested in how robots can navigate real-world environments,
       }
     }
 
-    let raf = 0;
     function loop(now: number) {
       paint(now);
-      raf = requestAnimationFrame(loop);
+      pixelRaf = requestAnimationFrame(loop);
     }
 
     function start() {
       layout();
       build();
       sample();
-      cancelAnimationFrame(raf);
+      cancelAnimationFrame(pixelRaf);
       if (reduce) paint(0);
-      else raf = requestAnimationFrame(loop);
+      else pixelRaf = requestAnimationFrame(loop);
     }
 
     // The censor is pure geometry and does not depend on the photo decoding,
@@ -246,14 +252,27 @@ I’m especially interested in how robots can navigate real-world environments,
     }
 
     let resizeTimer = 0;
-    window.addEventListener("resize", () => {
+    pixelResize = () => {
       window.clearTimeout(resizeTimer);
       resizeTimer = window.setTimeout(() => {
         layout();
         if (reduce) paint(0);
       }, 120);
-    });
+    };
+    window.addEventListener("resize", pixelResize);
   }
+
+  // Tear down the loop/listener before the DOM is swapped away, then re-init
+  // on the incoming page (also fires on first load).
+  document.addEventListener("astro:before-swap", () => {
+    cancelAnimationFrame(pixelRaf);
+    pixelRaf = 0;
+    if (pixelResize) {
+      window.removeEventListener("resize", pixelResize);
+      pixelResize = null;
+    }
+  });
+  document.addEventListener("astro:page-load", initPixelFx);
 </script>
 
 <script>
@@ -262,10 +281,14 @@ I’m especially interested in how robots can navigate real-world environments,
   // the real letters. Each letter is locked into its measured width during the
   // animation so the centered heading doesn't jitter, then handed back to plain
   // responsive text when finished.
-  const heading = document.querySelector<HTMLElement>(".hero-header h1");
-  const noMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let nameRaf = 0;
 
-  if (heading && !noMotion && "requestAnimationFrame" in window) {
+  function initHeroName() {
+    const heading = document.querySelector<HTMLElement>(".hero-header h1");
+    const noMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)",
+    ).matches;
+    if (!heading || noMotion || !("requestAnimationFrame" in window)) return;
     const finalText = heading.textContent ?? "";
     const glyphs = "▚▞▓▒░█▤▥▦▧#%&0123456789";
     const pick = () => glyphs[(Math.random() * glyphs.length) | 0];
@@ -310,9 +333,15 @@ I’m especially interested in how robots can navigate real-world environments,
         const g = Math.round(140 + 115 * p);
         span.style.color = `rgb(${g},${g},${g})`;
       }
-      if (t < total) requestAnimationFrame(frame);
+      if (t < total) nameRaf = requestAnimationFrame(frame);
       else heading.textContent = finalText; // restore clean, responsive text
     }
-    requestAnimationFrame(frame);
+    nameRaf = requestAnimationFrame(frame);
   }
+
+  document.addEventListener("astro:before-swap", () => {
+    cancelAnimationFrame(nameRaf);
+    nameRaf = 0;
+  });
+  document.addEventListener("astro:page-load", initHeroName);
 </script>

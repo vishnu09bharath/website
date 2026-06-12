@@ -1,9 +1,14 @@
 ---
-interface Props {
-  active?: "work" | "projects" | "thoughts" | "about";
-}
-
-const { active } = Astro.props;
+const path = Astro.url.pathname;
+const active = path.startsWith("/work")
+  ? "work"
+  : path.startsWith("/projects")
+    ? "projects"
+    : path.startsWith("/thoughts")
+      ? "thoughts"
+      : path.startsWith("/about")
+        ? "about"
+        : undefined;
 
 const items = [
   { key: "work", href: "/work/", label: "Work" },

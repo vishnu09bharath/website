@@ -43,7 +43,9 @@
 <style>
   .globe-stage {
     display: flex;
-    flex-wrap: wrap;
+    /* nowrap: the panel must never wrap to a second line mid-animation, or the
+       stage height bounces and the content below jumps down then back up. */
+    flex-wrap: nowrap;
     align-items: center;
     justify-content: center;
     gap: 0;
@@ -80,6 +82,11 @@
     outline-offset: 4px;
     border-radius: 50%;
   }
+  /* While opening/closing, ignore pointer events so hover can't flip as the
+     globe slides under a stationary cursor (which caused the scale to jitter). */
+  .globe-stage.busy .globe {
+    pointer-events: none;
+  }
   .globe-canvas {
     width: 100%;
     height: 100%;
@@ -88,6 +95,7 @@
 
   .globe-status {
     flex: 0 1 auto;
+    min-width: 0; /* allow shrink-to-fit instead of overflow when row is tight */
     max-width: 0;
     opacity: 0;
     overflow: hidden;
@@ -488,6 +496,13 @@
 
     if (!stage) return; // not on the About page
 
+    // The DOM is freshly created on each navigation and starts closed, so keep
+    // the persistent module state in sync — otherwise a stale `open` would draw
+    // the arc + countdown over a collapsed panel after navigating back.
+    state.open = false;
+    state.openedAt = 0;
+    stage.classList.remove("open", "busy");
+
     if (clockEl || countdownEl) {
       const fmt = new Intl.DateTimeFormat("en-US", {
         timeZone: "America/New_York",
@@ -529,7 +544,7 @@
         // suppress hover-scaling until the open/close animation settles
         stage.classList.add("busy");
         window.clearTimeout(busyTimer);
-        busyTimer = window.setTimeout(() => stage.classList.remove("busy"), 650);
+        busyTimer = window.setTimeout(() => stage.classList.remove("busy"), 700);
       });
     }
 

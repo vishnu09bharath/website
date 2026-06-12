@@ -1,15 +1,18 @@
 ---
 import "../styles/global.css";
 import { ViewTransitions } from "astro:transitions";
+import SectionTaskbar from "../components/SectionTaskbar.astro";
 
 interface Props {
   title: string;
   description: string;
   back?: boolean;
   backHref?: string;
+  backLabel?: string;
+  showNav?: boolean;
 }
 
-const { title, description, back = false, backHref = "/" } = Astro.props;
+const { title, description, back = false, backHref = "/", backLabel = "Back", showNav = true } = Astro.props;
 const year = new Date().getFullYear();
 ---
 
@@ -27,7 +30,8 @@ const year = new Date().getFullYear();
     <ViewTransitions />
   </head>
   <body>
-    {back && <a class="back" href={backHref}>← Back</a>}
+    {back && <a class="back" href={backHref}>← {backLabel}</a>}
+    {showNav && <SectionTaskbar />}
     <slot />
     <footer>
       <span class="footer-copy">© {year} Vishnu Bharath</span>

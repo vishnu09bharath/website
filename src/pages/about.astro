@@ -1,13 +1,12 @@
 ---
 import Base from "../layouts/Base.astro";
-import SectionTaskbar from "../components/SectionTaskbar.astro";
 import Globe from "../components/Globe.astro";
 
 const description =
   "About Vishnu Bharath, a student researcher and robotics team founder.";
 ---
 
-<Base title="About — Vishnu Bharath" description={description} back>
+<Base title="About — Vishnu Bharath" description={description} back backLabel="Home">
   <Globe />
 
   <header>
@@ -16,9 +15,11 @@ const description =
   </header>
 
   <main>
-    <SectionTaskbar active="about" />
-
     <p class="intro">who am i?</p>
+
+    <ul class="contact-list">
+      <li><a href="mailto:mr.vishnubharath@gmail.com">mr.vishnubharath@gmail.com</a></li>
+    </ul>
 
     <p class="photo-credit">
       © Photos by

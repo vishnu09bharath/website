@@ -1,6 +1,5 @@
 ---
 import Base from "../../layouts/Base.astro";
-import SectionTaskbar from "../../components/SectionTaskbar.astro";
 
 const description =
   "Projects by Vishnu Bharath across robotics, AI, software, and student-led initiatives.";
@@ -15,15 +14,13 @@ const projects = [
 ];
 ---
 
-<Base title="Projects — Vishnu Bharath" description={description} back>
+<Base title="Projects — Vishnu Bharath" description={description} back backLabel="Home">
   <header>
     <h1>Projects</h1>
     <p class="tagline">Robotics, AI, software, and experiments in progress.</p>
   </header>
 
   <main>
-    <SectionTaskbar active="projects" />
-
     <nav class="cards" aria-label="Projects">
       {
         projects.map((project) => (
