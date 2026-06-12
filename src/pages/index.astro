@@ -1,76 +1,103 @@
 ---
-import "../styles/global.css";
-import { navItems, profile, sections } from "@data/portfolio";
+import Base from "../layouts/Base.astro";
 
-const buildDate = new Date().toISOString();
+const description =
+  "Vishnu Bharath — robotics researcher at the MIT Media Lab's City Science group and founding captain of FRC Team 9644.";
+
+const sections = [
+  {
+    href: "/media-lab/",
+    title: "MIT Media Lab — City Science",
+    time: "2024 –",
+    blurb: "RL control and human-robot interaction for last-meter delivery robots.",
+  },
+  {
+    href: "/frc/",
+    title: "FRC Team 9644",
+    time: "2023 –",
+    blurb: "Co-founder, captain & driver. 2026 New England Champions.",
+  },
+  {
+    href: "/publications/",
+    title: "Publications",
+    time: "2026",
+    blurb: "Do Robots Need Body Language? — ACM/IEEE HRI ’26.",
+  },
+  {
+    href: "/day-of-ai/",
+    title: "MIT Day of AI — Gear Grease",
+    time: "2024",
+    blurb: "LLM-driven game NPCs, presented at the Boston Museum of Science.",
+  },
+  {
+    href: "/school-store/",
+    title: "NEIA School Store",
+    time: "2023 – 2025",
+    blurb: "CEO. Zero to $25K+ annual revenue at full profitability.",
+  },
+];
 ---
 
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="The personal site of Vishnu Bharath: robotics, research, ventures, and selected work."
+<Base title="Vishnu Bharath" description={description}>
+  <section class="hero-wrap">
+    <img
+      class="hero"
+      src="/images/hero-pit.jpg"
+      alt="Vishnu standing at the driver station during a FIRST Robotics Competition match"
+      width="2400"
+      height="1600"
+      fetchpriority="high"
     />
-    <title>{profile.name}</title>
-  </head>
-  <body>
-    <main id="top">
-      <section class="landing" aria-label="Home">
-        <img class="landing-image" src="/images/frc-pit-portrait-obfuscated.png" alt="" />
-        <div class="landing-scrim" aria-hidden="true"></div>
+    <header class="hero-header">
+      <h1>Vishnu Bharath</h1>
+    </header>
+    <ul class="hero-links">
+      <li>
+        <a href="https://www.linkedin.com/in/vishnu-bharath-383a24285/"
+          >linkedin</a
+        >
+      </li>
+      <li><a href="mailto:mr.vishnubharath@gmail.com">email</a></li>
+      <li><a href="https://github.com/vishnu09bharath">github</a></li>
+    </ul>
+    <a class="scroll-cue" href="#work" aria-label="Scroll to content">
+      <span>↓</span>
+    </a>
+  </section>
 
-        <header class="masthead">
-          <a class="nameplate" href="#top">{profile.name}</a>
-          <p>{profile.tagline}</p>
-        </header>
+  <main>
+    <p class="intro">
+      I'm a student researcher in the City Science group at the MIT Media
+      Lab, where I work on control and human-robot interaction for last-meter
+      delivery robots in cities. I also founded and captain FIRST Robotics
+      Competition Team 9644, the 2026 New England Champions.
+    </p>
 
-        <nav class="primary-nav" aria-label="Primary navigation">
-          {navItems.map(item => (
-            <a data-track-nav href={item.href}>{item.label}<span aria-hidden="true">-></span></a>
-          ))}
-        </nav>
+    <h2 id="work">Work</h2>
 
-        <div class="social-links" aria-label="Contact links">
-          {profile.links.map(link => (
-            <a data-track-link href={link.href}>{link.label}</a>
-          ))}
-        </div>
-      </section>
-
-      <div class="content-shell">
-        {sections.map(section => (
-          <section class="content-section" id={section.id}>
-            <div class="section-label">
-              <span>{section.kicker}</span>
-              <h2>{section.title}</h2>
+    <nav class="cards">
+      {
+        sections.map((s) => (
+          <a class="card" href={s.href}>
+            <div class="entry-head">
+              <h3>{s.title}</h3>
+              <time>{s.time}</time>
             </div>
-            <div class="entry-list">
-              {section.entries.map(entry => (
-                <article class="entry">
-                  <p class="entry-meta">{entry.meta}</p>
-                  <h3>{entry.title}</h3>
-                  <p>{entry.text}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-    </main>
+            <p>{s.blurb}</p>
+            <span class="arrow" aria-hidden="true">→</span>
+          </a>
+        ))
+      }
+    </nav>
 
-    <footer class="footer">
-      <p>{profile.name} / <span id="buildDate"></span></p>
-      <a href="#top">top</a>
-    </footer>
+    <h2>Contact</h2>
 
-    <script is:inline define:vars={{ buildDate }}>
-      document.getElementById("buildDate").textContent = new Date(buildDate).getFullYear();
-    </script>
-    <script>
-      import "../scripts/portfolio";
-    </script>
-  </body>
-</html>
+    <ul class="contact-list">
+      <li>
+        <a href="mailto:mr.vishnubharath@gmail.com"
+          >mr.vishnubharath@gmail.com</a
+        >
+      </li>
+    </ul>
+  </main>
+</Base>
