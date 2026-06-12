@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <style>
+    text { fill: #1a1a1a; }
+    @media (prefers-color-scheme: dark) { text { fill: #e8e8e4; } }
+  </style>
+  <text x="16" y="23" text-anchor="middle" font-family="-apple-system, Helvetica, Arial, sans-serif" font-size="19" font-weight="600">VB</text>
+</svg>

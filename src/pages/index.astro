@@ -1,76 +1,140 @@
 ---
 import "../styles/global.css";
-import { navItems, profile, sections } from "@data/portfolio";
 
-const buildDate = new Date().toISOString();
+const description =
+  "Vishnu Bharath — robotics researcher at the MIT Media Lab's City Science group and founding captain of FRC Team 9644.";
 ---
 
 <!doctype html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta
-      name="description"
-      content="The personal site of Vishnu Bharath: robotics, research, ventures, and selected work."
-    />
-    <title>{profile.name}</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vishnu Bharath</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content="Vishnu Bharath" />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="canonical" href="https://vishnubharath.com/" />
   </head>
   <body>
-    <main id="top">
-      <section class="landing" aria-label="Home">
-        <img class="landing-image" src="/images/frc-pit-portrait-obfuscated.png" alt="" />
-        <div class="landing-scrim" aria-hidden="true"></div>
+    <header>
+      <h1>Vishnu Bharath</h1>
+      <p class="tagline">Robotics research &amp; human-robot interaction</p>
+    </header>
 
-        <header class="masthead">
-          <a class="nameplate" href="#top">{profile.name}</a>
-          <p>{profile.tagline}</p>
-        </header>
+    <main>
+      <p class="intro">
+        I'm a student researcher in the
+        <a href="https://www.media.mit.edu/groups/city-science/overview/"
+          >City Science group</a
+        > at the MIT Media Lab, where I work on control and human-robot
+        interaction for last-meter delivery robots in cities. I also founded
+        and captain FIRST Robotics Competition Team 9644, the 2026 New England
+        Champions.
+      </p>
 
-        <nav class="primary-nav" aria-label="Primary navigation">
-          {navItems.map(item => (
-            <a data-track-nav href={item.href}>{item.label}<span aria-hidden="true">-></span></a>
-          ))}
-        </nav>
+      <h2>Selected Work</h2>
 
-        <div class="social-links" aria-label="Contact links">
-          {profile.links.map(link => (
-            <a data-track-link href={link.href}>{link.label}</a>
-          ))}
+      <article class="entry">
+        <div class="entry-head">
+          <h3>MIT Media Lab — City Science</h3>
+          <time>2024 –</time>
         </div>
-      </section>
+        <p class="role">Student Researcher</p>
+        <p>
+          Deployed reinforcement-learning control policies on custom bipedal
+          (6-DOF) and quadruped (16-DOF) last-meter delivery robots, demoed
+          live to 20+ industry partners. Built path planning and low-level
+          control in ROS — AprilTag localization, SLAM, and a novel
+          multi-robot docking mechanism for cooperative navigation over urban
+          obstacles. The only high-school researcher in the lab, invited to
+          stay on through 2028+ between Cambridge and Taipei.
+        </p>
+      </article>
 
-      <div class="content-shell">
-        {sections.map(section => (
-          <section class="content-section" id={section.id}>
-            <div class="section-label">
-              <span>{section.kicker}</span>
-              <h2>{section.title}</h2>
-            </div>
-            <div class="entry-list">
-              {section.entries.map(entry => (
-                <article class="entry">
-                  <p class="entry-meta">{entry.meta}</p>
-                  <h3>{entry.title}</h3>
-                  <p>{entry.text}</p>
-                </article>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
+      <article class="entry">
+        <div class="entry-head">
+          <h3>FRC Team 9644</h3>
+          <time>2023 –</time>
+        </div>
+        <p class="role">Co-founder, Captain &amp; Driver</p>
+        <p>
+          Co-founded a fully student-led robotics team and built it in ten
+          weeks for the 2024 season. Ranked top 5% globally, qualified for the
+          World Championship all three seasons, and won the 2026 New England
+          Championship in my first year as driver and captain. Led software —
+          vision, simulation, and autonomous routines — and raised $150K+ in
+          sponsorships.
+        </p>
+        <img
+          src="/images/frc-winner-2026.jpeg"
+          alt="Vishnu holding the 2026 FIRST Robotics Competition New England winner banner"
+          width="724"
+          height="1086"
+          loading="lazy"
+        />
+      </article>
+
+      <article class="entry">
+        <div class="entry-head">
+          <h3>MIT Day of AI — Gear Grease</h3>
+          <time>2024</time>
+        </div>
+        <p>
+          Led a team of four building a sustainability video game with
+          LLM-driven NPC dialogue. Invited to present at the Boston Museum of
+          Science alongside MIT RAISE director Cynthia Breazeal and Media Lab
+          director Dava Newman, reaching 8,000+ teachers across 110+
+          countries.
+        </p>
+      </article>
+
+      <article class="entry">
+        <div class="entry-head">
+          <h3>NEIA School Store</h3>
+          <time>2023 – 2025</time>
+        </div>
+        <p class="role">CEO</p>
+        <p>
+          Scaled a student-run store from zero to $25,000+ in annual revenue
+          at full profitability, leading a team of seven. Built the website,
+          product catalog, and payment infrastructure, and expanded from
+          digital-only to a physical storefront.
+        </p>
+      </article>
+
+      <h2>Publications</h2>
+
+      <article class="entry">
+        <h3>
+          <a href="https://doi.org/10.1145/3776734.3794408"
+            >Do Robots Need Body Language? Comparing Communication Modalities
+            for Legible Motion Intent in Human-Shared Spaces</a
+          >
+        </h3>
+        <p class="pub-authors">
+          J. Cohen, K. Shimizu, <strong>V. Bharath</strong>, Y. Song, K.
+          Larson, P. Maes — ACM/IEEE HRI ’26
+        </p>
+        <p>
+          Expressive motor behaviors for legged robots that communicate intent
+          through motion and posture in urban, human-shared spaces.
+        </p>
+      </article>
+
+      <h2>Contact</h2>
+
+      <ul class="contact-list">
+        <li>
+          <a href="mailto:mr.vishnubharath@gmail.com"
+            >mr.vishnubharath@gmail.com</a
+          >
+        </li>
+      </ul>
     </main>
 
-    <footer class="footer">
-      <p>{profile.name} / <span id="buildDate"></span></p>
-      <a href="#top">top</a>
-    </footer>
-
-    <script is:inline define:vars={{ buildDate }}>
-      document.getElementById("buildDate").textContent = new Date(buildDate).getFullYear();
-    </script>
-    <script>
-      import "../scripts/portfolio";
-    </script>
+    <footer>Vishnu Bharath — Massachusetts</footer>
   </body>
 </html>
