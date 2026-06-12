@@ -1,20 +1,10 @@
 :root {
-  --bg: #fcfcfa;
-  --fg: #1a1a1a;
-  --muted: #6b6b6b;
-  --rule: #e4e4e0;
-  --accent: #1a1a1a;
+  --bg: #131312;
+  --fg: #e8e8e4;
+  --muted: #9a9a94;
+  --rule: #2b2b29;
+  --accent: #e8e8e4;
   --max-width: 40rem;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #131312;
-    --fg: #e8e8e4;
-    --muted: #9a9a94;
-    --rule: #2b2b29;
-    --accent: #e8e8e4;
-  }
 }
 
 * {
@@ -25,6 +15,7 @@ html {
   scroll-behavior: smooth;
   /* Always reserve the scrollbar gutter so centered content doesn't shift
      between pages that scroll (e.g. Work) and those that don't. */
+  color-scheme: dark;
   scrollbar-gutter: stable;
   background: var(--bg);
   color: var(--fg);
@@ -372,6 +363,24 @@ a:hover {
 
 .intro {
   margin-top: 2.5rem;
+}
+
+/* Work page: content with the résumé as a right-hand sidebar (contained
+   within the page width, unlike .publication-layout which bleeds right). */
+.work-layout {
+  display: grid;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (min-width: 680px) {
+  .work-layout {
+    grid-template-columns: minmax(0, 1fr) 7rem;
+  }
+}
+
+.resume-sidebar div {
+  margin-bottom: 0;
 }
 
 .section-taskbar {
