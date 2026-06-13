@@ -46,7 +46,9 @@ export const POST: APIRoute = async ({ request, locals, cookies, redirect }) => 
     await saveSite(env, input);
   } catch (e) {
     const msg = e instanceof Error ? e.message : "Invalid input";
-    return redirect("/admin?error=" + encodeURIComponent(msg.slice(0, 300)));
+    return redirect(
+      "/admin?error=" + encodeURIComponent(msg.slice(0, 300)) + "#site",
+    );
   }
-  return redirect("/admin?saved=1");
+  return redirect("/admin?saved=1#site");
 };

@@ -16,6 +16,12 @@ const error = Astro.url.searchParams.get("error");
 const kvMissing = !env?.SITE_KV;
 const isDev = import.meta.env.DEV;
 
+// After a save the user lands back here with ?saved=1#site (or ?error=...#site).
+// We can't read the URL hash on the server, but the query param is a perfect
+// hint — render the Site content tab active so there's no Overview→Site flicker
+// before client JS picks up the hash.
+const initialTab = saved || error ? "site" : "overview";
+
 // Curated palettes for the announcement banner — one-click alternatives to the
 // raw color pickers. First is the current default.
 const BANNER_PRESETS = [
@@ -77,63 +83,97 @@ const fmtLon = (lon: number) =>
     </header>
 
     <nav class="dash-taskbar" aria-label="Sections">
-      <a class="tab is-active" data-tab="overview" href="#overview">Overview</a>
-      <a class="tab" data-tab="site" href="#site">Site content</a>
+      <a
+        class:list={["tab", { "is-active": initialTab === "overview" }]}
+        data-tab="overview"
+        href="#overview"
+      >
+        Overview
+      </a>
+      <a
+        class:list={["tab", { "is-active": initialTab === "site" }]}
+        data-tab="site"
+        href="#site"
+      >
+        Site content
+      </a>
       <span class="tab is-soon" aria-disabled="true">Drafts</span>
       <span class="tab is-soon" aria-disabled="true">Activity</span>
     </nav>
 
     <main>
-      <section class="dash-pane" data-pane="overview">
+      <section class="dash-pane" data-pane="overview" hidden={initialTab !== "overview"}>
         <header class="pane-head">
           <h2>Overview</h2>
           <p class="pane-sub">What's live on the site right now.</p>
         </header>
 
-          <div class="kpi-grid">
-            <article class="kpi">
-              <span class="kpi-label">Announcement banner</span>
-              <span class="kpi-value">
-                {site.banner.enabled ? "On" : "Off"}
-              </span>
+          <article class="status-panel">
+            <dl class="status-list">
+              <div class="status-row">
+                <dt>Banner</dt>
+                <dd>
+                  <span class="status-state" data-on={String(site.banner.enabled)}>
+                    {site.banner.enabled ? "On" : "Off"}
+                  </span>
+                  {
+                    site.banner.enabled && (
+                      <>
+                        <span class="status-sep" aria-hidden="true">·</span>
+                        <span class="status-text">"{site.banner.text}"</span>
+                      </>
+                    )
+                  }
+                </dd>
+                <span
+                  class="status-swatch"
+                  aria-hidden="true"
+                  style={`background:${site.banner.bg};color:${site.banner.fg}`}
+                >Aa</span>
+              </div>
+
+              <div class="status-row">
+                <dt>Location</dt>
+                <dd>
+                  {site.travel.home.label}
+                  <span class="status-sep" aria-hidden="true">·</span>
+                  <span class="status-text">{site.travel.home.timezone}</span>
+                </dd>
+              </div>
+
+              <div class="status-row">
+                <dt>Next</dt>
+                <dd>
+                  {site.travel.destination.label}
+                  <span class="status-sep" aria-hidden="true">·</span>
+                  <span class="status-text">
+                    {daysToArrival === 0
+                      ? "arriving today"
+                      : `in ${daysToArrival} ${daysToArrival === 1 ? "day" : "days"}`}
+                    · {site.travel.arrival}
+                  </span>
+                </dd>
+              </div>
+
               {
-                site.banner.enabled && (
-                  <span class="kpi-detail">"{site.banner.text}"</span>
+                site.travel.flight && (
+                  <div class="status-row">
+                    <dt>Flight</dt>
+                    <dd>{site.travel.flight}</dd>
+                  </div>
                 )
               }
-              <span
-                class="kpi-swatch"
-                aria-hidden="true"
-                style={`background:${site.banner.bg};color:${site.banner.fg}`}
-                >Aa</span
-              >
-            </article>
+            </dl>
+          </article>
 
-            <article class="kpi">
-              <span class="kpi-label">Currently in</span>
-              <span class="kpi-value">{site.travel.home.label}</span>
-              <span class="kpi-detail">{site.travel.home.timezone}</span>
-            </article>
-
-            <article class="kpi">
-              <span class="kpi-label">Next destination</span>
-              <span class="kpi-value">{site.travel.destination.label}</span>
-              <span class="kpi-detail">
-                {daysToArrival === 0 ? "Arriving today" : `in ${daysToArrival} ${daysToArrival === 1 ? "day" : "days"}`}
-                · {site.travel.arrival}
-              </span>
-            </article>
-
-            <article class="kpi kpi-links">
-              <span class="kpi-label">Quick links</span>
-              <a href="/" target="_blank" rel="noopener">Home →</a>
-              <a href="/about" target="_blank" rel="noopener">About / globe →</a>
-              <a href="#site">Edit content ↓</a>
-            </article>
-          </div>
+          <nav class="status-actions" aria-label="Quick links">
+            <a href="/" target="_blank" rel="noopener">Open homepage ↗</a>
+            <a href="/about" target="_blank" rel="noopener">Open globe ↗</a>
+            <a href="#site">Edit content ↓</a>
+          </nav>
         </section>
 
-        <section class="dash-pane" data-pane="site" hidden>
+        <section class="dash-pane" data-pane="site" hidden={initialTab !== "site"}>
           <header class="pane-head">
             <h2>Site content</h2>
             <p class="pane-sub">
@@ -582,63 +622,80 @@ const fmtLon = (lon: number) =>
       }
 
       /* ---------- Overview ---------- */
-      .kpi-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-        gap: 0.85rem;
-      }
-      .kpi {
-        position: relative;
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-        padding: 1rem 1.1rem 1.15rem;
+      .status-panel {
         border: 1px solid var(--rule);
         border-radius: 3px;
+        padding: 0.4rem 1.2rem;
       }
-      .kpi-label {
+      .status-list {
+        margin: 0;
+      }
+      .status-row {
+        position: relative;
+        display: grid;
+        grid-template-columns: 5rem minmax(0, 1fr) auto;
+        align-items: baseline;
+        gap: 1rem;
+        padding: 0.75rem 0;
+        border-bottom: 1px solid var(--rule);
+      }
+      .status-row:last-child {
+        border-bottom: 0;
+      }
+      .status-row dt {
+        margin: 0;
         color: var(--muted);
         font-size: 0.7rem;
         font-weight: 500;
         letter-spacing: 0.12em;
         text-transform: uppercase;
       }
-      .kpi-value {
-        margin-top: 0.15rem;
-        font-size: 1.15rem;
-        font-weight: 600;
-        letter-spacing: -0.01em;
+      .status-row dd {
+        margin: 0;
+        font-size: 0.95rem;
+        color: var(--fg);
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
-      .kpi-detail {
+      .status-state[data-on="true"] {
+        color: var(--fg);
+      }
+      .status-state[data-on="false"] {
         color: var(--muted);
-        font-size: 0.82rem;
       }
-      .kpi-swatch {
-        position: absolute;
-        top: 0.9rem;
-        right: 1rem;
+      .status-text {
+        color: var(--muted);
+      }
+      .status-sep {
+        margin: 0 0.2rem;
+        color: var(--rule);
+      }
+      .status-swatch {
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        width: 1.85rem;
-        height: 1.4rem;
+        width: 2.1rem;
+        height: 1.5rem;
         border: 1px solid var(--rule);
         border-radius: 2px;
-        font-size: 0.65rem;
+        font-size: 0.7rem;
         font-weight: 700;
         letter-spacing: 0.05em;
       }
-      .kpi-links {
-        gap: 0.45rem;
+
+      .status-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+        margin-top: 1.25rem;
       }
-      .kpi-links a {
-        color: var(--fg);
+      .status-actions a {
+        color: var(--muted);
         font-size: 0.88rem;
         text-decoration: none;
       }
-      .kpi-links a:hover {
-        text-decoration: underline;
-        text-underline-offset: 0.2em;
+      .status-actions a:hover {
+        color: var(--fg);
       }
 
       /* ---------- Toasts ---------- */
@@ -735,6 +792,7 @@ const fmtLon = (lon: number) =>
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 0.8rem;
+        margin-top: 0.95rem;
       }
       .row label {
         margin-top: 0;
@@ -864,6 +922,8 @@ const fmtLon = (lon: number) =>
       }
       .combo-input input {
         width: 100%;
+        /* leave room for the status dot so it never sits on top of text */
+        padding-right: 1.75rem;
       }
       .combo-status {
         position: absolute;

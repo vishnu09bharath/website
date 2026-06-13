@@ -582,7 +582,10 @@ footer {
 }
 
 footer .dot {
-  color: var(--rule);
+  color: #5a5a55;
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 footer a {

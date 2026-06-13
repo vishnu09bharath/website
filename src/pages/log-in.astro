@@ -254,14 +254,19 @@ const ipLabel = !hasIpLoc
       if (canvas && ctx) {
         let rings = [];
         let W = 0, H = 0, cx = 0, cy = 0, R = 1, Rrest = 1, Rzoom = 1, dpr = 1;
-        const LAM_REST = -95; // resting longitude (then rotates)
-        let lam = LAM_REST;
         let last = performance.now();
 
         // Approximate visitor location (from Cloudflare edge geo via data-*).
         const ipLat = parseFloat(canvas.dataset.ipLat);
         const ipLon = parseFloat(canvas.dataset.ipLon);
         const hasIp = Number.isFinite(ipLat) && Number.isFinite(ipLon);
+
+        // Resting longitude: settle with the visitor's location framed a touch
+        // east of centre (the framing the home location had), then rotate on from
+        // there — instead of always panning to a fixed view of the Americas.
+        const REST_OFFSET = 23.5;
+        const LAM_REST = hasIp ? ipLon - REST_OFFSET : -95;
+        let lam = LAM_REST;
 
         // Intro fly-out: open zoomed in + centered on the visitor's location,
         // then ease out (zoom, rotate, tilt) to the resting orientation. Skipped
