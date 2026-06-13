@@ -1,13 +1,18 @@
 ---
 import Base from "../layouts/Base.astro";
 import Globe from "../components/Globe.astro";
+import { getSite } from "../data/site";
+
+export const prerender = false; // read travel plan from KV at request time
 
 const description =
   "About Vishnu Bharath, a student researcher and robotics team founder.";
+
+const { travel } = await getSite((Astro.locals as any).runtime?.env);
 ---
 
 <Base title="About — Vishnu Bharath" description={description} back backLabel="Home">
-  <Globe />
+  <Globe travel={travel} />
 
   <header>
     <h1>About</h1>

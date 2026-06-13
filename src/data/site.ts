@@ -1,16 +1,12 @@
 import { z } from "astro:content";
-import data from "./site.json";
+import seed from "./site.json";
 
-// Single source of truth for the semi-regularly edited content on the site
-// (the landing-page banner and the globe's travel plan). Edit site.json, commit,
-// and Cloudflare redeploys. The schema below validates the JSON at build time,
-// so a bad edit (e.g. a malformed date or out-of-range coordinate) fails the
-// build with a clear error instead of shipping broken content.
-//
-// Designed to be CMS-friendly (Avenue B): point a git-based CMS at site.json
-// with fields matching this schema. To move to a runtime store later (Avenue C),
-// swap the `data` import for a fetch and keep the rest of the app reading from
-// the `banner` / `travel` exports below.
+// Editable site content (landing-page banner + globe travel plan), Avenue C:
+// stored in a Cloudflare KV namespace and read at request time, so edits made in
+// the /admin panel go live instantly — no rebuild, no git push. site.json is the
+// seed/fallback used before the first edit (and if KV is ever unavailable). The
+// zod schema validates every read and every write, so bad data can never be
+// stored or rendered.
 
 const location = z.object({
   label: z.string().min(1),
@@ -18,7 +14,7 @@ const location = z.object({
   lon: z.number().min(-180).max(180),
 });
 
-const schema = z.object({
+export const siteSchema = z.object({
   banner: z.object({
     enabled: z.boolean(),
     prefix: z.string().default(""),
@@ -34,8 +30,40 @@ const schema = z.object({
   }),
 });
 
-const site = schema.parse(data);
+export type Site = z.infer<typeof siteSchema>;
 
-export const banner = site.banner;
-export const travel = site.travel;
-export type Site = typeof site;
+// Validated default, baked from site.json at build time.
+export const defaults: Site = siteSchema.parse(seed);
+
+const KEY = "site";
+
+type KV = {
+  get(key: string): Promise<string | null>;
+  put(key: string, value: string): Promise<void>;
+};
+export type SiteEnv = { SITE_KV?: KV } | undefined;
+
+/** Read current content from KV, falling back to the seed defaults. */
+export async function getSite(env: SiteEnv): Promise<Site> {
+  const kv = env?.SITE_KV;
+  if (kv) {
+    try {
+      const raw = await kv.get(KEY);
+      if (raw) return siteSchema.parse(JSON.parse(raw));
+    } catch {
+      // Malformed/partial stored value — fall back to defaults rather than 500.
+    }
+  }
+  return defaults;
+}
+
+/** Validate and persist new content to KV. Throws (ZodError) on invalid input. */
+export async function saveSite(
+  env: { SITE_KV?: KV },
+  input: unknown,
+): Promise<Site> {
+  const parsed = siteSchema.parse(input);
+  if (!env.SITE_KV) throw new Error("SITE_KV binding is not configured");
+  await env.SITE_KV.put(KEY, JSON.stringify(parsed, null, 2));
+  return parsed;
+}

@@ -4,9 +4,15 @@
 // with an orthographic projection that slowly rotates about the pole. Click to
 // reveal a live status panel and draw a great-circle arc to the destination.
 //
-// The travel plan (home, destination, arrival date) is edited in src/data/site.json.
-import { travel } from "../data/site";
+// The travel plan (home, destination, arrival date) comes from KV via the page
+// (src/data/site.ts → getSite), passed in as a prop and editable at /admin.
+import type { Site } from "../data/site";
 
+interface Props {
+  travel: Site["travel"];
+}
+
+const { travel } = Astro.props;
 const { home, destination, arrival } = travel;
 
 const fmtLat = (lat: number) =>

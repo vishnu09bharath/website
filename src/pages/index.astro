@@ -1,7 +1,11 @@
 ---
 import Base from "../layouts/Base.astro";
 import SectionTaskbar from "../components/SectionTaskbar.astro";
-import { banner } from "../data/site";
+import { getSite } from "../data/site";
+
+export const prerender = false; // read banner from KV at request time
+
+const { banner } = await getSite((Astro.locals as any).runtime?.env);
 
 const description =
   "Vishnu Bharath — robotics researcher at the MIT Media Lab's City Science group and founding captain of FRC Team 9644.";

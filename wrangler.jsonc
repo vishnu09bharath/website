@@ -1,17 +1,26 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "website",
-  "compatibility_date": "2026-06-12",
-  "observability": {
-    "enabled": true
-  },
-  "main": "dist/_worker.js/index.js",
-  "compatibility_flags": [
-    "global_fetch_strictly_public",
-    "nodejs_compat"
-  ],
-  "assets": {
-    "binding": "ASSETS",
-    "directory": "dist"
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "website",
+	"compatibility_date": "2026-06-12",
+	"observability": {
+		"enabled": true
+	},
+	"main": "dist/_worker.js/index.js",
+	"compatibility_flags": [
+		"global_fetch_strictly_public",
+		"nodejs_compat"
+	],
+	"assets": {
+		"binding": "ASSETS",
+		"directory": "dist"
+	},
+	// Editable site content (banner + globe travel) for the /admin CMS.
+	// Create the namespace once with: wrangler kv namespace create SITE_KV
+	// then paste the returned id below. Local dev uses an emulated KV automatically.
+	"kv_namespaces": [
+		{
+			"binding": "SITE_KV",
+			"id": "1e054309bbe349bdab92b59986217427"
+		}
+	]
 }

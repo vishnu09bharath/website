@@ -1,0 +1,231 @@
+---
+export const prerender = false;
+
+import "../../styles/global.css";
+import { getSite } from "../../data/site";
+import { getAdmin } from "../../lib/auth";
+
+const env = (Astro.locals as any).runtime?.env;
+const login = await getAdmin(Astro.cookies, env);
+if (!login) return Astro.redirect("/admin/login");
+
+const site = await getSite(env);
+const saved = Astro.url.searchParams.get("saved");
+const error = Astro.url.searchParams.get("error");
+const kvMissing = !env?.SITE_KV;
+const isDev = import.meta.env.DEV;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Admin — Vishnu Bharath</title>
+  </head>
+  <body>
+    <header class="admin-head">
+      <h1>Site content</h1>
+      <span class="admin-who">
+        {isDev ? "local dev (no auth)" : `signed in as ${login}`}
+        {!isDev && <> · <a href="/admin/logout">log out</a></>}
+      </span>
+    </header>
+
+    {saved && <p class="admin-note ok">Saved. Changes are live.</p>}
+    {error && <p class="admin-note err">Could not save: {error}</p>}
+    {
+      kvMissing && (
+        <p class="admin-note err">
+          SITE_KV is not bound — saving is disabled. Add the KV namespace binding
+          (see ADMIN.md).
+        </p>
+      )
+    }
+
+    <form method="POST" action="/api/admin/save">
+      <fieldset>
+        <legend>Announcement banner</legend>
+
+        <label class="check">
+          <input
+            type="checkbox"
+            name="bannerEnabled"
+            checked={site.banner.enabled}
+          />
+          Show banner
+        </label>
+
+        <label>Prefix <small>(lead-in; hidden on narrow screens)</small>
+          <input type="text" name="bannerPrefix" value={site.banner.prefix} />
+        </label>
+        <label>Text
+          <input type="text" name="bannerText" value={site.banner.text} required />
+        </label>
+        <label>Link label
+          <input type="text" name="bannerLinkLabel" value={site.banner.linkLabel} required />
+        </label>
+        <label>Link URL
+          <input type="url" name="bannerLinkHref" value={site.banner.linkHref} required />
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Travel — home</legend>
+        <label>Label
+          <input type="text" name="homeLabel" value={site.travel.home.label} required />
+        </label>
+        <div class="row">
+          <label>Latitude
+            <input type="number" step="any" name="homeLat" value={site.travel.home.lat} required />
+          </label>
+          <label>Longitude
+            <input type="number" step="any" name="homeLon" value={site.travel.home.lon} required />
+          </label>
+        </div>
+        <label>Time zone (IANA) <small>e.g. America/New_York</small>
+          <input type="text" name="homeTz" value={site.travel.home.timezone} required />
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend>Travel — destination</legend>
+        <label>Label
+          <input type="text" name="destLabel" value={site.travel.destination.label} required />
+        </label>
+        <div class="row">
+          <label>Latitude
+            <input type="number" step="any" name="destLat" value={site.travel.destination.lat} required />
+          </label>
+          <label>Longitude
+            <input type="number" step="any" name="destLon" value={site.travel.destination.lon} required />
+          </label>
+        </div>
+        <label>Arrival date <small>(globe counts down to this)</small>
+          <input type="date" name="arrival" value={site.travel.arrival} required />
+        </label>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit" disabled={kvMissing}>Save</button>
+        <a class="view" href="/" target="_blank" rel="noopener">View site ↗</a>
+      </div>
+    </form>
+
+    <style>
+      body {
+        max-width: 34rem;
+        padding: 3rem 1.5rem 5rem;
+      }
+      .admin-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        flex-wrap: wrap;
+        text-align: left;
+        margin-bottom: 1.5rem;
+      }
+      .admin-who {
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .admin-note {
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        padding: 0.6rem 0.8rem;
+        font-size: 0.85rem;
+        margin: 0 0 1.25rem;
+      }
+      .admin-note.ok {
+        border-color: #2f81f7;
+        color: #2f81f7;
+      }
+      .admin-note.err {
+        border-color: #d9534f;
+        color: #d9534f;
+      }
+      fieldset {
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+        margin: 0 0 1.5rem;
+        padding: 0.5rem 1.1rem 1.1rem;
+      }
+      legend {
+        padding: 0 0.4rem;
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      label {
+        display: block;
+        margin-top: 1rem;
+        font-size: 0.85rem;
+      }
+      label small {
+        color: var(--muted);
+        font-weight: 400;
+      }
+      label.check {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        font-size: 0.95rem;
+      }
+      label.check input {
+        width: auto;
+        margin: 0;
+      }
+      input[type="text"],
+      input[type="url"],
+      input[type="number"],
+      input[type="date"] {
+        display: block;
+        width: 100%;
+        margin-top: 0.35rem;
+        padding: 0.5rem 0.6rem;
+        background: var(--bg);
+        color: var(--fg);
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        font: inherit;
+        font-size: 0.9rem;
+      }
+      input:focus {
+        outline: none;
+        border-color: var(--fg);
+      }
+      .row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+      }
+      .actions {
+        display: flex;
+        align-items: center;
+        gap: 1.25rem;
+      }
+      button {
+        padding: 0.6rem 1.4rem;
+        background: var(--fg);
+        color: var(--bg);
+        border: 0;
+        border-radius: 2px;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+      button:disabled {
+        opacity: 0.45;
+        cursor: not-allowed;
+      }
+      .view {
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+    </style>
+  </body>
+</html>

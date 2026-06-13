@@ -1,0 +1,14 @@
+# Secrets for the /admin CMS. Copy to `.dev.vars` for local use (optional — local
+# dev leaves /admin open without auth). In production set these as Cloudflare
+# Pages / Workers secrets. See ADMIN.md.
+
+# Google OAuth client credentials (Web application). Scope is just openid+email.
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=
+
+# Long random string used to sign the admin session cookie. Generate with:
+#   openssl rand -hex 32
+AUTH_SECRET=
+
+# Only this Google account email may access /admin.
+ALLOWED_EMAIL=mr.vishnubharath@gmail.com
