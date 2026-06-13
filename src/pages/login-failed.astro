@@ -8,7 +8,7 @@ const messages: Record<string, string> = {
   state: "Your sign-in request expired or was tampered with.",
   config: "Admin sign-in isn't configured on this deployment.",
   token: "Google didn't return a valid sign-in token.",
-  unauthorized: "That Google account isn't authorized.",
+  unauthorized: "That account isn't authorized.",
 };
 const message = (reason && messages[reason]) || "Your account was unauthorized.";
 
