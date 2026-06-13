@@ -28,10 +28,10 @@ export const GET: APIRoute = async ({ locals, cookies, url, redirect }) => {
   cookies.delete(STATE_COOKIE, { path: "/" });
 
   if (!code || !state || !savedState || state !== savedState) {
-    return new Response("Invalid OAuth state.", { status: 400 });
+    return redirect("/login-failed/?reason=state");
   }
   if (!GOOGLE_CLIENT_ID || !GOOGLE_CLIENT_SECRET || !AUTH_SECRET || !ALLOWED_EMAIL) {
-    return new Response("Admin auth is not configured.", { status: 500 });
+    return redirect("/login-failed/?reason=config");
   }
 
   // Exchange the code for tokens.
@@ -51,14 +51,14 @@ export const GET: APIRoute = async ({ locals, cookies, url, redirect }) => {
   });
   const tokenJson: any = await tokenRes.json().catch(() => ({}));
   const idToken = tokenJson.id_token as string | undefined;
-  if (!idToken) return new Response("OAuth token exchange failed.", { status: 401 });
+  if (!idToken) return redirect("/login-failed/?reason=token");
 
   const claims = decodeJwtPayload(idToken);
   const email: string | undefined = claims?.email;
   const verified =
     claims?.email_verified === true || claims?.email_verified === "true";
   if (!email || !verified || email.toLowerCase() !== ALLOWED_EMAIL.toLowerCase()) {
-    return new Response("Not authorized.", { status: 403 });
+    return redirect("/login-failed/?reason=unauthorized");
   }
 
   const token = await createSession(email, AUTH_SECRET, 7);

@@ -2,14 +2,15 @@
 export const prerender = false;
 
 import "../styles/global.css";
-import { getAdmin } from "../lib/auth";
 
-const env = (Astro.locals as any).runtime?.env;
-const login = await getAdmin(Astro.cookies, env);
-
-// Already signed in (production) → go straight to the dashboard. In dev the
-// bypass makes `login` truthy, so we DON'T redirect — this page stays viewable.
-if (login && !import.meta.env.DEV) return Astro.redirect("/admin");
+const reason = Astro.url.searchParams.get("reason");
+const messages: Record<string, string> = {
+  state: "Your sign-in request expired or was tampered with.",
+  config: "Admin sign-in isn't configured on this deployment.",
+  token: "Google didn't return a valid sign-in token.",
+  unauthorized: "That Google account isn't authorized.",
+};
+const message = (reason && messages[reason]) || "Your account was unauthorized.";
 
 // Approximate visitor location from Cloudflare's edge geo (request.cf), used to
 // drop a pulsing marker on the globe. Falls back to Boston in local dev so the
@@ -19,8 +20,6 @@ const ipLat = cf?.latitude ? Number(cf.latitude) : import.meta.env.DEV ? 42.36 :
 const ipLon = cf?.longitude ? Number(cf.longitude) : import.meta.env.DEV ? -71.06 : null;
 const hasIpLoc = Number.isFinite(ipLat) && Number.isFinite(ipLon);
 
-// A short label for the location annotation that types out before zooming out:
-// city/region when the edge provides it, otherwise the coordinates.
 const fmtLat = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? "N" : "S"}`;
 const fmtLon = (v: number) => `${Math.abs(v).toFixed(2)}°${v >= 0 ? "E" : "W"}`;
 const placeParts = [cf?.city, cf?.region || cf?.country].filter(Boolean);
@@ -37,7 +36,7 @@ const ipLabel = !hasIpLoc
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>Log in — Vishnu Bharath</title>
+    <title>Login failed — Vishnu Bharath</title>
   </head>
   <body class="login-body">
     <canvas
@@ -56,8 +55,8 @@ const ipLabel = !hasIpLoc
 
     <main class="panel">
       <h1>
-        <span class="welcome">Welcome back,</span>
-        Vishnu.
+        <span class="welcome">Are you actually</span>
+        Vishnu?
       </h1>
 
       <a class="google-btn" href="/api/auth/start">
@@ -67,10 +66,10 @@ const ipLabel = !hasIpLoc
           <path d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
           <path d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
         </svg>
-        <span>Log in with Google</span>
+        <span>Try again with Google</span>
       </a>
 
-      <p class="note">Restricted to the site owner. <a href="/">← Back home</a></p>
+      <p class="note">{message} <a href="/">← Back home</a></p>
     </main>
 
     <div class="clock" aria-hidden="true">--:--:--</div>
@@ -93,8 +92,6 @@ const ipLabel = !hasIpLoc
         height: 100%;
         display: block;
       }
-      /* Soften (blur) the globe behind the panel on the left so the text reads,
-         fading back to a crisp globe on the right. */
       .shade {
         position: fixed;
         inset: 0;
@@ -158,7 +155,6 @@ const ipLabel = !hasIpLoc
         border-color: var(--fg);
         background: color-mix(in srgb, var(--fg) 12%, transparent);
       }
-      /* Monochrome the Google mark to match the grayscale button. */
       .google-btn svg path {
         fill: currentColor;
       }
@@ -179,24 +175,20 @@ const ipLabel = !hasIpLoc
         right: 1.25rem;
         bottom: 1rem;
         z-index: 2;
-        color: rgba(47, 129, 247, 0.85);
+        color: rgba(235, 87, 87, 0.85);
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: 0.85rem;
         letter-spacing: 0.06em;
       }
-      /* Location annotation that types out beside the IP marker (which sits at
-         the globe center cx=66% / cy=36% while zoomed in), then fades out. */
       .ip-annot {
         position: fixed;
         left: 0;
         top: 0;
         z-index: 2;
-        /* left/top are set per-frame in JS to the dot's screen position; this
-           offset places the label just to the right of the dot. */
         transform: translate(16px, -50%);
         will-change: left, top;
         max-width: 40vw;
-        color: rgba(47, 129, 247, 0.92);
+        color: rgba(235, 87, 87, 0.92);
         font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
         font-size: 0.8rem;
         letter-spacing: 0.04em;
@@ -220,13 +212,12 @@ const ipLabel = !hasIpLoc
     </style>
 
     <script>
-      // Rotating blue wireframe globe (orthographic): country outlines +
-      // graticule with a few pulsing coastal markers. Blue matches the about
-      // page globe's point-of-interest blue (47,129,247).
-      const BLUE = "47,129,247";
+      // Rotating red wireframe globe — mirrors the login page's globe but in
+      // an error/alert palette to signal the failed sign-in.
+      const RED = "235,87,87";
       const DEG = Math.PI / 180;
-      const PHI_REST = 35 * DEG; // resting tilt (higher → more of the north pole)
-      let phi = PHI_REST; // animated during the intro fly-out
+      const PHI_REST = 35 * DEG;
+      let phi = PHI_REST;
       let sinP = Math.sin(phi);
       let cosP = Math.cos(phi);
       const reduce = window.matchMedia(
@@ -256,27 +247,18 @@ const ipLabel = !hasIpLoc
         let W = 0, H = 0, cx = 0, cy = 0, R = 1, Rrest = 1, Rzoom = 1, dpr = 1;
         let last = performance.now();
 
-        // Approximate visitor location (from Cloudflare edge geo via data-*).
         const ipLat = parseFloat(canvas.dataset.ipLat);
         const ipLon = parseFloat(canvas.dataset.ipLon);
         const hasIp = Number.isFinite(ipLat) && Number.isFinite(ipLon);
 
-        // Resting longitude: settle with the visitor's location framed a touch
-        // east of centre (the framing the home location had), then rotate on from
-        // there — instead of always panning to a fixed view of the Americas.
         const REST_OFFSET = 23.5;
         const LAM_REST = hasIp ? ipLon - REST_OFFSET : -95;
         let lam = LAM_REST;
 
-        // Intro fly-out: open zoomed in + centered on the visitor's location,
-        // then ease out (zoom, rotate, tilt) to the resting orientation. Skipped
-        // without a location or when the user prefers reduced motion.
         const INTRO_MS = 2800;
         const introOn = hasIp && !reduce;
-        const lamFrom = ipLon; // centering longitude on the visitor
+        const lamFrom = ipLon;
         const phiFrom = Math.max(-83, Math.min(83, ipLat)) * DEG;
-        // Hold zoomed in while a location label types out, then ~1s extra,
-        // before the zoom-out begins.
         const annotEl = document.querySelector(".ip-annot");
         const annotLabel = (annotEl && annotEl.dataset.label) || "";
         const TYPE_MS = 42;
@@ -286,7 +268,6 @@ const ipLabel = !hasIpLoc
           t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
         const shortDelta = (a, b) => ((b - a + 540) % 360) - 180;
 
-        // Type the label out, then fade it as the zoom-out starts.
         if (introOn && annotEl && annotLabel) {
           annotEl.classList.add("show", "typing");
           let ci = 0;
@@ -297,7 +278,7 @@ const ipLabel = !hasIpLoc
           setTimeout(() => {
             clearInterval(typer);
             annotEl.textContent = annotLabel;
-            annotEl.classList.remove("typing", "show"); // caret off + fade out
+            annotEl.classList.remove("typing", "show");
           }, HOLD_MS);
         }
 
@@ -309,10 +290,10 @@ const ipLabel = !hasIpLoc
           canvas.height = Math.round(H * dpr);
           ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
           Rrest = Math.max(W, H) * 0.432;
-          Rzoom = Math.max(W, H) * 3; // close-up at load
+          Rzoom = Math.max(W, H) * 3;
           R = Rrest;
           cx = W * 0.66;
-          cy = H * 0.47; // lower the globe so the south pole / tip of Chile sit off-frame
+          cy = H * 0.47;
         }
 
         function project(lon, lat) {
@@ -349,7 +330,6 @@ const ipLabel = !hasIpLoc
           if (introStart === null) introStart = now;
           const it = now - introStart;
           if (introOn && it < HOLD_MS) {
-            // hold: zoomed in + centered on the visitor while the label types
             R = Rzoom;
             phi = phiFrom;
             lam = lamFrom;
@@ -368,9 +348,8 @@ const ipLabel = !hasIpLoc
 
           ctx.clearRect(0, 0, W, H);
 
-          // graticule
           ctx.lineWidth = 1;
-          ctx.strokeStyle = `rgba(${BLUE},0.14)`;
+          ctx.strokeStyle = `rgba(${RED},0.14)`;
           for (let lon = -180; lon < 180; lon += 13) {
             const lats = [];
             for (let la = -80; la <= 80; la += 3) lats.push(la);
@@ -382,9 +361,8 @@ const ipLabel = !hasIpLoc
             strokePath(lons, la, true);
           }
 
-          // country borders + coastlines
           ctx.lineWidth = 1;
-          ctx.strokeStyle = `rgba(${BLUE},0.5)`;
+          ctx.strokeStyle = `rgba(${RED},0.5)`;
           for (const ring of rings) {
             let pen = false;
             ctx.beginPath();
@@ -400,7 +378,6 @@ const ipLabel = !hasIpLoc
             ctx.stroke();
           }
 
-          // pulsing marker at the visitor's IP location
           if (hasIp) {
             const p = project(ipLon, ipLat);
             if (p.z >= 0) {
@@ -408,17 +385,15 @@ const ipLabel = !hasIpLoc
                 const phase = (now % 2200) / 2200;
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, 4 + phase * 20, 0, Math.PI * 2);
-                ctx.strokeStyle = `rgba(${BLUE},${0.5 * (1 - phase)})`;
+                ctx.strokeStyle = `rgba(${RED},${0.5 * (1 - phase)})`;
                 ctx.lineWidth = 1.5;
                 ctx.stroke();
               }
               ctx.beginPath();
               ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-              ctx.fillStyle = `rgb(${BLUE})`;
+              ctx.fillStyle = `rgb(${RED})`;
               ctx.fill();
             }
-            // Pin the annotation to the dot's live screen position so it tracks
-            // the dot (and stays attached) as the globe zooms out and rotates.
             if (annotEl) {
               if (p.z >= 0) {
                 annotEl.style.left = p.x + "px";

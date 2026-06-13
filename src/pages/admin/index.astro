@@ -8,7 +8,7 @@ import { CITIES } from "../../data/cities";
 
 const env = (Astro.locals as any).runtime?.env;
 const login = await getAdmin(Astro.cookies, env);
-if (!login) return Astro.redirect("/log-in");
+if (!login) return Astro.redirect("/login");
 
 const site = await getSite(env);
 const saved = Astro.url.searchParams.get("saved");
