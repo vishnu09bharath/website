@@ -1,20 +1,25 @@
 ---
 import Base from "../layouts/Base.astro";
 import SectionTaskbar from "../components/SectionTaskbar.astro";
+import { banner } from "../data/site";
 
 const description =
   "Vishnu Bharath — robotics researcher at the MIT Media Lab's City Science group and founding captain of FRC Team 9644.";
 ---
 
 <Base title="Vishnu Bharath" description={description} showNav={false}>
-  <section class="hero-wrap has-announcement">
-    <aside class="announcement" aria-label="Announcement">
-      <span><span class="announcement-prefix">Vishnu named </span>20 Under 20 New England.</span>
-      <a
-        href="https://indianewengland.com/india-new-england-news-announces-20-under-20-stars-list-for-2026/#vishnubharath"
-        >Read more →</a
-      >
-    </aside>
+  <section class:list={["hero-wrap", { "has-announcement": banner.enabled }]}>
+    {
+      banner.enabled && (
+        <aside class="announcement" aria-label="Announcement">
+          <span>
+            <span class="announcement-prefix">{banner.prefix}</span>
+            {banner.text}
+          </span>
+          <a href={banner.linkHref}>{banner.linkLabel}</a>
+        </aside>
+      )
+    }
 
     <img
       class="hero"

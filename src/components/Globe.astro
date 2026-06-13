@@ -1,8 +1,25 @@
 ---
 // Grayscale wireframe globe: meridian/parallel grid with opaque landmasses
-// and a pulsing blue dot at the current location (Boston). Rendered on a
-// canvas with an orthographic projection that slowly rotates about the pole.
-// Click to reveal a live status panel and draw a great-circle arc to Hangzhou.
+// and a pulsing blue dot at the current (home) location. Rendered on a canvas
+// with an orthographic projection that slowly rotates about the pole. Click to
+// reveal a live status panel and draw a great-circle arc to the destination.
+//
+// The travel plan (home, destination, arrival date) is edited in src/data/site.json.
+import { travel } from "../data/site";
+
+const { home, destination, arrival } = travel;
+
+const fmtLat = (lat: number) =>
+  `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? "N" : "S"}`;
+const fmtLon = (lon: number) =>
+  `${Math.abs(lon).toFixed(4)}° ${lon >= 0 ? "E" : "W"}`;
+
+// Values the client script needs (serialized into the DOM below).
+const config = {
+  home: { lat: home.lat, lon: home.lon, tz: home.timezone },
+  dest: { lat: destination.lat, lon: destination.lon },
+  arrival,
+};
 ---
 
 <div class="globe-stage">
@@ -19,10 +36,14 @@
         <path id="coords-bot" d="M -8,50 A 58,58 0 0,0 108,50" />
       </defs>
       <text class="coords-text">
-        <textPath href="#coords-top" startOffset="50%" text-anchor="middle">42.2043° N</textPath>
+        <textPath href="#coords-top" startOffset="50%" text-anchor="middle"
+          >{fmtLat(home.lat)}</textPath
+        >
       </text>
       <text class="coords-text">
-        <textPath href="#coords-bot" startOffset="50%" text-anchor="middle">71.5234° W</textPath>
+        <textPath href="#coords-bot" startOffset="50%" text-anchor="middle"
+          >{fmtLon(home.lon)}</textPath
+        >
       </text>
     </svg>
   </button>
@@ -31,7 +52,7 @@
     <dl>
       <div>
         <dt>Location</dt>
-        <dd>Boston</dd>
+        <dd>{home.label}</dd>
       </div>
       <div>
         <dt>Time</dt>
@@ -40,7 +61,7 @@
       <div>
         <dt>Next</dt>
         <dd>
-          Hangzhou, China
+          {destination.label}
           <span class="globe-next-eta"
             >in <span class="globe-countdown" aria-live="off"
               >--:--:--:--</span
@@ -189,10 +210,33 @@
   }
 </style>
 
+<script
+  type="application/json"
+  id="globe-config"
+  set:html={JSON.stringify(config)}
+/>
+
 <script>
-  // Locations
-  const HOME = { lon: -71.0589, lat: 42.3601 }; // Boston, MA
-  const DEST = { lon: 120.1551, lat: 30.2741 }; // Hangzhou, China
+  // Travel plan, read from the JSON config emitted above (edited in
+  // src/data/site.json). Defaults are a fallback if the element is missing.
+  let HOME = { lon: -71.0589, lat: 42.3601 };
+  let DEST = { lon: 120.1551, lat: 30.2741 };
+  let TZ = "America/New_York";
+  let ARRIVAL = new Date("2026-07-05T00:00:00");
+
+  function readTravelConfig() {
+    const el = document.getElementById("globe-config");
+    if (!el || !el.textContent) return;
+    try {
+      const c = JSON.parse(el.textContent);
+      HOME = { lon: c.home.lon, lat: c.home.lat };
+      DEST = { lon: c.dest.lon, lat: c.dest.lat };
+      TZ = c.home.tz;
+      ARRIVAL = new Date(c.arrival + "T00:00:00");
+    } catch {
+      /* keep defaults */
+    }
+  }
 
   const PHI0 = (38 * Math.PI) / 180; // fixed viewing tilt
   const sinP = Math.sin(PHI0);
@@ -208,11 +252,12 @@
   // Shared interaction state (mutated by the click handler, read by the loop).
   const state = { open: false, openedAt: 0 };
 
-  function daysToJul5() {
+  function daysToArrival() {
     const now = new Date();
-    let t = new Date(now.getFullYear(), 6, 5);
-    if (t.getTime() - now.getTime() < 0) t = new Date(now.getFullYear() + 1, 6, 5);
-    return Math.max(0, Math.ceil((t.getTime() - now.getTime()) / 86400000));
+    return Math.max(
+      0,
+      Math.ceil((ARRIVAL.getTime() - now.getTime()) / 86400000),
+    );
   }
 
   // Equirectangular land mask, built once from the bundled outline data.
@@ -463,7 +508,7 @@
       const m = arcPoint(0.5);
       const mp = project(m.lon, m.lat, lam);
       if (mp.z > 0.22) {
-        const days = daysToJul5();
+        const days = daysToArrival();
         const big = `${days} ${days === 1 ? "day" : "days"}`;
         ctx.save();
         ctx.globalAlpha = fade;
@@ -529,6 +574,8 @@
 
     if (!stage) return; // not on the About page
 
+    readTravelConfig();
+
     // The DOM is freshly created on each navigation and starts closed, so keep
     // the persistent module state in sync — otherwise a stale `open` would draw
     // the arc + countdown over a collapsed panel after navigating back.
@@ -538,7 +585,7 @@
 
     if (clockEl || countdownEl) {
       const fmt = new Intl.DateTimeFormat("en-US", {
-        timeZone: "America/New_York",
+        timeZone: TZ,
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit",
@@ -549,10 +596,10 @@
         const now = new Date();
         if (clockEl) clockEl.textContent = fmt.format(now);
         if (countdownEl) {
-          let target = new Date(now.getFullYear(), 6, 5); // July 5
-          if (target.getTime() <= now.getTime())
-            target = new Date(now.getFullYear() + 1, 6, 5);
-          let s = Math.max(0, Math.floor((target.getTime() - now.getTime()) / 1000));
+          let s = Math.max(
+            0,
+            Math.floor((ARRIVAL.getTime() - now.getTime()) / 1000),
+          );
           const dd = Math.floor(s / 86400);
           s -= dd * 86400;
           const hh = Math.floor(s / 3600);
