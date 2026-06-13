@@ -22,6 +22,8 @@ export const POST: APIRoute = async ({ request, locals, cookies, redirect }) => 
       text: String(f.get("bannerText") ?? ""),
       linkLabel: String(f.get("bannerLinkLabel") ?? ""),
       linkHref: String(f.get("bannerLinkHref") ?? ""),
+      bg: String(f.get("bannerBg") ?? "").toLowerCase(),
+      fg: String(f.get("bannerFg") ?? "").toLowerCase(),
     },
     travel: {
       home: {
@@ -36,6 +38,7 @@ export const POST: APIRoute = async ({ request, locals, cookies, redirect }) => 
         lon: num(f.get("destLon")),
       },
       arrival: String(f.get("arrival") ?? ""),
+      flight: String(f.get("flight") ?? "").trim(),
     },
   };
 

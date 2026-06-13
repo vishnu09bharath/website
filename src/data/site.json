@@ -4,7 +4,9 @@
     "prefix": "Vishnu named ",
     "text": "20 Under 20 New England.",
     "linkLabel": "Read more →",
-    "linkHref": "https://indianewengland.com/india-new-england-news-announces-20-under-20-stars-list-for-2026/#vishnubharath"
+    "linkHref": "https://indianewengland.com/india-new-england-news-announces-20-under-20-stars-list-for-2026/#vishnubharath",
+    "bg": "#01ed7e",
+    "fg": "#000000"
   },
   "travel": {
     "home": {
@@ -18,6 +20,7 @@
       "lat": 30.2741,
       "lon": 120.1551
     },
-    "arrival": "2026-07-05"
+    "arrival": "2026-07-05",
+    "flight": ""
   }
 }

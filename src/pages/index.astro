@@ -15,7 +15,11 @@ const description =
   <section class:list={["hero-wrap", { "has-announcement": banner.enabled }]}>
     {
       banner.enabled && (
-        <aside class="announcement" aria-label="Announcement">
+        <aside
+          class="announcement"
+          aria-label="Announcement"
+          style={`--banner-bg:${banner.bg};--banner-fg:${banner.fg}`}
+        >
           <span>
             <span class="announcement-prefix">{banner.prefix}</span>
             {banner.text}

@@ -107,8 +107,8 @@ a:hover {
   width: 100vw;
   min-height: 2.35rem;
   padding: 0.55rem 1rem;
-  background: #01ed7e;
-  color: #000;
+  background: var(--banner-bg, #01ed7e);
+  color: var(--banner-fg, #000);
   font-size: 0.61rem;
   font-weight: 600;
   letter-spacing: 0.11em;
@@ -120,13 +120,17 @@ a:hover {
 
 .announcement a {
   flex: 0 0 auto;
-  color: #000;
-  text-decoration-color: rgba(0, 0, 0, 0.45);
+  color: var(--banner-fg, #000);
+  text-decoration-color: color-mix(
+    in srgb,
+    var(--banner-fg, #000) 45%,
+    transparent
+  );
   white-space: nowrap;
 }
 
 .announcement a:hover {
-  text-decoration-color: #000;
+  text-decoration-color: var(--banner-fg, #000);
 }
 
 @keyframes announcement-drop {
@@ -590,7 +594,8 @@ footer a:hover {
   color: var(--fg);
 }
 
-footer .footer-privacy {
+footer .footer-privacy,
+footer .footer-login {
   text-decoration: underline;
   text-underline-offset: 0.2em;
 }

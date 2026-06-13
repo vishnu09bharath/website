@@ -4,16 +4,47 @@ export const prerender = false;
 import "../../styles/global.css";
 import { getSite } from "../../data/site";
 import { getAdmin } from "../../lib/auth";
+import { CITIES } from "../../data/cities";
 
 const env = (Astro.locals as any).runtime?.env;
 const login = await getAdmin(Astro.cookies, env);
-if (!login) return Astro.redirect("/admin/login");
+if (!login) return Astro.redirect("/log-in");
 
 const site = await getSite(env);
 const saved = Astro.url.searchParams.get("saved");
 const error = Astro.url.searchParams.get("error");
 const kvMissing = !env?.SITE_KV;
 const isDev = import.meta.env.DEV;
+
+// Curated palettes for the announcement banner — one-click alternatives to the
+// raw color pickers. First is the current default.
+const BANNER_PRESETS = [
+  { name: "Lime",      bg: "#01ed7e", fg: "#000000" },
+  { name: "Citrus",    bg: "#ff8a3d", fg: "#000000" },
+  { name: "Sunshine",  bg: "#fff200", fg: "#000000" },
+  { name: "Signal",    bg: "#2f81f7", fg: "#ffffff" },
+  { name: "Hot pink",  bg: "#ff3d8a", fg: "#000000" },
+  { name: "Mono dark", bg: "#0a0a0a", fg: "#e8e8e4" },
+  { name: "Mono lite", bg: "#f2f3f5", fg: "#131312" },
+];
+
+const arrivalDate = new Date(site.travel.arrival + "T00:00:00");
+const daysToArrival = Math.max(
+  0,
+  Math.ceil((arrivalDate.getTime() - Date.now()) / 86400000),
+);
+
+const humanArrival = arrivalDate.toLocaleDateString("en-US", {
+  weekday: "short",
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+});
+
+const fmtLat = (lat: number) =>
+  `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? "N" : "S"}`;
+const fmtLon = (lon: number) =>
+  `${Math.abs(lon).toFixed(4)}° ${lon >= 0 ? "E" : "W"}`;
 ---
 
 <!doctype html>
@@ -22,171 +53,663 @@ const isDev = import.meta.env.DEV;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="robots" content="noindex" />
-    <title>Admin — Vishnu Bharath</title>
+    <title>Dashboard — Vishnu Bharath</title>
   </head>
   <body>
-    <header class="admin-head">
-      <h1>Site content</h1>
-      <span class="admin-who">
-        {isDev ? "local dev (no auth)" : `signed in as ${login}`}
-        {!isDev && <> · <a href="/admin/logout">log out</a></>}
-      </span>
+    <a class="back" href="/">← Home</a>
+
+    <header class="dash-head">
+      <h1>Dashboard</h1>
+      <p class="tagline">Site content and tools.</p>
+      <p class="dash-who">
+        {
+          isDev ? (
+            <span class="dash-badge">local dev · no auth</span>
+          ) : (
+            <>
+              signed in as <span class="dash-email">{login}</span>
+              <span class="sep" aria-hidden="true">·</span>
+              <a href="/api/auth/logout">log out</a>
+            </>
+          )
+        }
+      </p>
     </header>
 
-    {saved && <p class="admin-note ok">Saved. Changes are live.</p>}
-    {error && <p class="admin-note err">Could not save: {error}</p>}
-    {
-      kvMissing && (
-        <p class="admin-note err">
-          SITE_KV is not bound — saving is disabled. Add the KV namespace binding
-          (see ADMIN.md).
-        </p>
-      )
-    }
+    <nav class="dash-taskbar" aria-label="Sections">
+      <a class="tab is-active" data-tab="overview" href="#overview">Overview</a>
+      <a class="tab" data-tab="site" href="#site">Site content</a>
+      <span class="tab is-soon" aria-disabled="true">Drafts</span>
+      <span class="tab is-soon" aria-disabled="true">Activity</span>
+    </nav>
 
-    <form method="POST" action="/api/admin/save">
-      <fieldset>
-        <legend>Announcement banner</legend>
+    <main>
+      <section class="dash-pane" data-pane="overview">
+        <header class="pane-head">
+          <h2>Overview</h2>
+          <p class="pane-sub">What's live on the site right now.</p>
+        </header>
 
-        <label class="check">
-          <input
-            type="checkbox"
-            name="bannerEnabled"
-            checked={site.banner.enabled}
-          />
-          Show banner
-        </label>
+          <div class="kpi-grid">
+            <article class="kpi">
+              <span class="kpi-label">Announcement banner</span>
+              <span class="kpi-value">
+                {site.banner.enabled ? "On" : "Off"}
+              </span>
+              {
+                site.banner.enabled && (
+                  <span class="kpi-detail">"{site.banner.text}"</span>
+                )
+              }
+              <span
+                class="kpi-swatch"
+                aria-hidden="true"
+                style={`background:${site.banner.bg};color:${site.banner.fg}`}
+                >Aa</span
+              >
+            </article>
 
-        <label>Prefix <small>(lead-in; hidden on narrow screens)</small>
-          <input type="text" name="bannerPrefix" value={site.banner.prefix} />
-        </label>
-        <label>Text
-          <input type="text" name="bannerText" value={site.banner.text} required />
-        </label>
-        <label>Link label
-          <input type="text" name="bannerLinkLabel" value={site.banner.linkLabel} required />
-        </label>
-        <label>Link URL
-          <input type="url" name="bannerLinkHref" value={site.banner.linkHref} required />
-        </label>
-      </fieldset>
+            <article class="kpi">
+              <span class="kpi-label">Currently in</span>
+              <span class="kpi-value">{site.travel.home.label}</span>
+              <span class="kpi-detail">{site.travel.home.timezone}</span>
+            </article>
 
-      <fieldset>
-        <legend>Travel — home</legend>
-        <label>Label
-          <input type="text" name="homeLabel" value={site.travel.home.label} required />
-        </label>
-        <div class="row">
-          <label>Latitude
-            <input type="number" step="any" name="homeLat" value={site.travel.home.lat} required />
-          </label>
-          <label>Longitude
-            <input type="number" step="any" name="homeLon" value={site.travel.home.lon} required />
-          </label>
-        </div>
-        <label>Time zone (IANA) <small>e.g. America/New_York</small>
-          <input type="text" name="homeTz" value={site.travel.home.timezone} required />
-        </label>
-      </fieldset>
+            <article class="kpi">
+              <span class="kpi-label">Next destination</span>
+              <span class="kpi-value">{site.travel.destination.label}</span>
+              <span class="kpi-detail">
+                {daysToArrival === 0 ? "Arriving today" : `in ${daysToArrival} ${daysToArrival === 1 ? "day" : "days"}`}
+                · {site.travel.arrival}
+              </span>
+            </article>
 
-      <fieldset>
-        <legend>Travel — destination</legend>
-        <label>Label
-          <input type="text" name="destLabel" value={site.travel.destination.label} required />
-        </label>
-        <div class="row">
-          <label>Latitude
-            <input type="number" step="any" name="destLat" value={site.travel.destination.lat} required />
-          </label>
-          <label>Longitude
-            <input type="number" step="any" name="destLon" value={site.travel.destination.lon} required />
-          </label>
-        </div>
-        <label>Arrival date <small>(globe counts down to this)</small>
-          <input type="date" name="arrival" value={site.travel.arrival} required />
-        </label>
-      </fieldset>
+            <article class="kpi kpi-links">
+              <span class="kpi-label">Quick links</span>
+              <a href="/" target="_blank" rel="noopener">Home →</a>
+              <a href="/about" target="_blank" rel="noopener">About / globe →</a>
+              <a href="#site">Edit content ↓</a>
+            </article>
+          </div>
+        </section>
 
-      <div class="actions">
-        <button type="submit" disabled={kvMissing}>Save</button>
-        <a class="view" href="/" target="_blank" rel="noopener">View site ↗</a>
-      </div>
-    </form>
+        <section class="dash-pane" data-pane="site" hidden>
+          <header class="pane-head">
+            <h2>Site content</h2>
+            <p class="pane-sub">
+              Edit the banner and globe travel plan. Changes are live the moment
+              you save — no rebuild required.
+            </p>
+          </header>
+
+          {
+            saved && (
+              <p class="dash-toast ok">Saved. Changes are live.</p>
+            )
+          }
+          {error && <p class="dash-toast err">Could not save: {error}</p>}
+          {
+            kvMissing && (
+              <p class="dash-toast err">
+                SITE_KV is not bound — saving is disabled. Add the KV namespace
+                binding (see ADMIN.md).
+              </p>
+            )
+          }
+
+          <form method="POST" action="/api/admin/save" class="site-form">
+            <div class="form-grid">
+              <div class="form-fields">
+                <fieldset class="card">
+                  <legend>Announcement banner</legend>
+
+                  <label class="toggle">
+                    <input
+                      id="bannerEnabled"
+                      type="checkbox"
+                      name="bannerEnabled"
+                      checked={site.banner.enabled}
+                    />
+                    <span>Show on the homepage</span>
+                  </label>
+
+                  <label>
+                    <span class="lbl">Lead-in <em>hidden on narrow screens</em></span>
+                    <input
+                      id="bannerPrefix"
+                      type="text"
+                      name="bannerPrefix"
+                      value={site.banner.prefix}
+                    />
+                  </label>
+
+                  <label>
+                    <span class="lbl">Headline</span>
+                    <input
+                      id="bannerText"
+                      type="text"
+                      name="bannerText"
+                      value={site.banner.text}
+                      required
+                    />
+                  </label>
+
+                  <div class="row">
+                    <label>
+                      <span class="lbl">Link label</span>
+                      <input
+                        id="bannerLinkLabel"
+                        type="text"
+                        name="bannerLinkLabel"
+                        value={site.banner.linkLabel}
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span class="lbl">Link URL</span>
+                      <input
+                        id="bannerLinkHref"
+                        type="url"
+                        name="bannerLinkHref"
+                        value={site.banner.linkHref}
+                        required
+                      />
+                    </label>
+                  </div>
+
+                  <div class="color-section">
+                    <span class="lbl">Colors</span>
+                    <div class="color-controls">
+                      <span class="color-field">
+                        <input
+                          id="bannerBg"
+                          type="color"
+                          name="bannerBg"
+                          value={site.banner.bg}
+                          aria-label="Background color"
+                        />
+                        <input
+                          id="bannerBgHex"
+                          type="text"
+                          value={site.banner.bg}
+                          aria-label="Background hex"
+                          pattern="^#[0-9a-fA-F]{6}$"
+                          maxlength="7"
+                          spellcheck="false"
+                        />
+                        <em>Background</em>
+                      </span>
+                      <span class="color-field">
+                        <input
+                          id="bannerFg"
+                          type="color"
+                          name="bannerFg"
+                          value={site.banner.fg}
+                          aria-label="Text color"
+                        />
+                        <input
+                          id="bannerFgHex"
+                          type="text"
+                          value={site.banner.fg}
+                          aria-label="Text hex"
+                          pattern="^#[0-9a-fA-F]{6}$"
+                          maxlength="7"
+                          spellcheck="false"
+                        />
+                        <em>Text</em>
+                      </span>
+                    </div>
+                    <div class="color-presets" role="group" aria-label="Palette presets">
+                      {
+                        BANNER_PRESETS.map((p) => (
+                          <button
+                            type="button"
+                            class="swatch"
+                            data-bg={p.bg}
+                            data-fg={p.fg}
+                            title={p.name}
+                            style={`background:${p.bg};color:${p.fg}`}
+                          >
+                            Aa
+                          </button>
+                        ))
+                      }
+                    </div>
+                  </div>
+                </fieldset>
+
+                <fieldset class="card">
+                  <legend>Itinerary</legend>
+
+                  <div class="itinerary">
+                    <div class="combo" data-scope="home">
+                      <span class="lbl">
+                        From <em>where you are now</em>
+                      </span>
+                      <div class="combo-input">
+                        <input
+                          id="homeLabel"
+                          name="homeLabel"
+                          type="text"
+                          autocomplete="off"
+                          spellcheck="false"
+                          placeholder="Search a city or place…"
+                          value={site.travel.home.label}
+                          required
+                        />
+                        <span class="combo-status" aria-hidden="true"></span>
+                      </div>
+                      <div class="combo-list" role="listbox" hidden></div>
+                      <div class="combo-meta">
+                        <span data-meta="coords">
+                          {fmtLat(site.travel.home.lat)} · {fmtLon(site.travel.home.lon)}
+                        </span>
+                        <span class="dot" aria-hidden="true">·</span>
+                        <span data-meta="tz">{site.travel.home.timezone}</span>
+                      </div>
+                      <input type="hidden" id="homeLat" name="homeLat" value={site.travel.home.lat} />
+                      <input type="hidden" id="homeLon" name="homeLon" value={site.travel.home.lon} />
+                      <input type="hidden" id="homeTz" name="homeTz" value={site.travel.home.timezone} />
+                    </div>
+
+                    <span class="itinerary-arrow" aria-hidden="true">→</span>
+
+                    <div class="combo" data-scope="dest">
+                      <span class="lbl">
+                        To <em>your destination</em>
+                      </span>
+                      <div class="combo-input">
+                        <input
+                          id="destLabel"
+                          name="destLabel"
+                          type="text"
+                          autocomplete="off"
+                          spellcheck="false"
+                          placeholder="Search a city or place…"
+                          value={site.travel.destination.label}
+                          required
+                        />
+                        <span class="combo-status" aria-hidden="true"></span>
+                      </div>
+                      <div class="combo-list" role="listbox" hidden></div>
+                      <div class="combo-meta">
+                        <span data-meta="coords">
+                          {fmtLat(site.travel.destination.lat)} · {fmtLon(site.travel.destination.lon)}
+                        </span>
+                      </div>
+                      <input type="hidden" id="destLat" name="destLat" value={site.travel.destination.lat} />
+                      <input type="hidden" id="destLon" name="destLon" value={site.travel.destination.lon} />
+                    </div>
+                  </div>
+
+                  <div class="row">
+                    <label>
+                      <span class="lbl">
+                        Arrival date <em>globe counts down to this</em>
+                      </span>
+                      <input
+                        id="arrival"
+                        type="date"
+                        name="arrival"
+                        value={site.travel.arrival}
+                        required
+                      />
+                    </label>
+                    <label>
+                      <span class="lbl">
+                        Flight <em>optional · e.g. UA853</em>
+                      </span>
+                      <input
+                        id="flight"
+                        type="text"
+                        name="flight"
+                        value={site.travel.flight}
+                        placeholder="UA853"
+                        autocomplete="off"
+                        maxlength="12"
+                      />
+                    </label>
+                  </div>
+
+                  <p class="itinerary-summary" aria-live="polite">
+                    <span id="summaryFrom">{site.travel.home.label}</span>
+                    <span class="arrow-sm" aria-hidden="true">→</span>
+                    <span id="summaryTo">{site.travel.destination.label}</span>
+                    <span class="dot" aria-hidden="true">·</span>
+                    <span id="summaryDate">{humanArrival}</span>
+                    <span
+                      class="flight-tag"
+                      id="summaryFlight"
+                      hidden={!site.travel.flight}
+                    >
+                      <span class="dot" aria-hidden="true">·</span>
+                      <span data-bind="flight">{site.travel.flight}</span>
+                    </span>
+                  </p>
+                </fieldset>
+
+                <div class="actions">
+                  <button type="submit" disabled={kvMissing}>
+                    Save changes
+                  </button>
+                  <a class="view" href="/" target="_blank" rel="noopener">
+                    Open homepage ↗
+                  </a>
+                  <a class="view" href="/about" target="_blank" rel="noopener">
+                    Open globe ↗
+                  </a>
+                </div>
+              </div>
+
+              <aside class="form-preview" aria-label="Live preview">
+                <h3>Live preview</h3>
+
+                <div class="preview-tag">Homepage top</div>
+                <div class="preview-frame" id="previewFrame">
+                  <div
+                    class="preview-banner"
+                    id="previewBanner"
+                    style={`--banner-bg:${site.banner.bg};--banner-fg:${site.banner.fg}`}
+                    data-enabled={String(site.banner.enabled)}
+                  >
+                    <span>
+                      <span class="preview-banner-prefix" data-bind="bannerPrefix">{site.banner.prefix}</span>
+                      <span data-bind="bannerText">{site.banner.text}</span>
+                    </span>
+                    <a data-bind="bannerLink" href={site.banner.linkHref}>{site.banner.linkLabel}</a>
+                  </div>
+                  <div class="preview-disabled" hidden={site.banner.enabled}>
+                    Banner is hidden.
+                  </div>
+                  <div class="preview-page">
+                    <div class="preview-hero">Vishnu Bharath</div>
+                    <div class="preview-page-stub" />
+                  </div>
+                </div>
+
+                <div class="preview-tag">Globe panel (About page)</div>
+                <div class="preview-globe">
+                  <dl>
+                    <div>
+                      <dt>Location</dt>
+                      <dd data-bind="homeLabel">{site.travel.home.label}</dd>
+                    </div>
+                    <div>
+                      <dt>Next</dt>
+                      <dd>
+                        <span data-bind="destLabel">{site.travel.destination.label}</span>
+                        <span class="preview-eta">in <span id="previewCountdown">--:--:--:--</span></span>
+                      </dd>
+                    </div>
+                    <div id="previewFlightRow" hidden={!site.travel.flight}>
+                      <dt>Flight</dt>
+                      <dd data-bind="flightPreview">{site.travel.flight}</dd>
+                    </div>
+                    <div>
+                      <dt>Coords</dt>
+                      <dd>
+                        <span id="previewHomeCoords">{fmtLat(site.travel.home.lat)} · {fmtLon(site.travel.home.lon)}</span>
+                        <span class="preview-arrow"> → </span>
+                        <span id="previewDestCoords">{fmtLat(site.travel.destination.lat)} · {fmtLon(site.travel.destination.lon)}</span>
+                      </dd>
+                    </div>
+                  </dl>
+                </div>
+              </aside>
+            </div>
+          </form>
+        </section>
+      </main>
+
+    <script
+      type="application/json"
+      id="cities-data"
+      set:html={JSON.stringify(CITIES)}
+    />
 
     <style>
       body {
-        max-width: 34rem;
-        padding: 3rem 1.5rem 5rem;
+        max-width: 58rem;
+        padding: 3rem 1.5rem 4rem;
       }
-      .admin-head {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 1rem;
-        flex-wrap: wrap;
-        text-align: left;
-        margin-bottom: 1.5rem;
+
+      .dash-head {
+        text-align: center;
       }
-      .admin-who {
+      .dash-head h1 {
+        font-size: 1.15rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .dash-head .tagline {
         color: var(--muted);
-        font-size: 0.8rem;
+        margin-top: 0.2rem;
       }
-      .admin-note {
+      .dash-who {
+        margin-top: 0.7rem;
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+      .dash-who a {
+        color: var(--muted);
+        text-decoration: underline;
+        text-decoration-color: var(--rule);
+        text-underline-offset: 0.2em;
+        transition: text-decoration-color 0.15s ease, color 0.15s ease;
+      }
+      .dash-who a:hover {
+        color: var(--fg);
+        text-decoration-color: var(--fg);
+      }
+      .dash-email {
+        color: var(--fg);
+        font-variant-numeric: tabular-nums;
+      }
+      .dash-who .sep {
+        margin: 0 0.35rem;
+        color: var(--rule);
+      }
+      .dash-badge {
+        display: inline-block;
+        padding: 0.18rem 0.6rem;
         border: 1px solid var(--rule);
         border-radius: 2px;
-        padding: 0.6rem 0.8rem;
-        font-size: 0.85rem;
-        margin: 0 0 1.25rem;
-      }
-      .admin-note.ok {
-        border-color: #2f81f7;
-        color: #2f81f7;
-      }
-      .admin-note.err {
-        border-color: #d9534f;
-        color: #d9534f;
-      }
-      fieldset {
-        border: 1px solid var(--rule);
-        border-radius: 3px;
-        margin: 0 0 1.5rem;
-        padding: 0.5rem 1.1rem 1.1rem;
-      }
-      legend {
-        padding: 0 0.4rem;
-        font-size: 0.72rem;
-        font-weight: 600;
+        font-size: 0.7rem;
         letter-spacing: 0.1em;
         text-transform: uppercase;
-        color: var(--muted);
       }
-      label {
-        display: block;
-        margin-top: 1rem;
-        font-size: 0.85rem;
+
+      /* Section nav — matches the public site's SectionTaskbar exactly. */
+      .dash-taskbar {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        margin: 1.7rem 0 2rem;
+        border-top: 1px solid var(--rule);
+        border-bottom: 1px solid var(--rule);
       }
-      label small {
-        color: var(--muted);
-        font-weight: 400;
-      }
-      label.check {
+      .dash-taskbar .tab {
         display: flex;
         align-items: center;
-        gap: 0.5rem;
-        font-size: 0.95rem;
+        justify-content: center;
+        min-height: 2.75rem;
+        border-right: 1px solid var(--rule);
+        color: var(--muted);
+        font-size: 0.8rem;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        line-height: 1;
+        text-align: center;
+        text-decoration: none;
+        text-transform: uppercase;
+        cursor: pointer;
+        transition: background-color 0.15s ease, color 0.15s ease;
       }
-      label.check input {
-        width: auto;
+      .dash-taskbar .tab:last-child {
+        border-right: 0;
+      }
+      .dash-taskbar .tab:hover {
+        background: var(--rule);
+        color: var(--fg);
+      }
+      .dash-taskbar .tab.is-active {
+        background: var(--fg);
+        color: var(--bg);
+      }
+      .dash-taskbar .tab.is-soon {
+        opacity: 0.4;
+        cursor: default;
+      }
+      .dash-taskbar .tab.is-soon:hover {
+        background: transparent;
+        color: var(--muted);
+      }
+
+      .pane-head h2 {
         margin: 0;
+        font-size: 1.15rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        text-transform: none;
+        color: var(--fg);
       }
-      input[type="text"],
-      input[type="url"],
-      input[type="number"],
-      input[type="date"] {
+      .pane-head {
+        margin-bottom: 1.5rem;
+      }
+      .pane-sub {
+        margin: 0.2rem 0 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+
+      /* ---------- Overview ---------- */
+      .kpi-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+        gap: 0.85rem;
+      }
+      .kpi {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+        padding: 1rem 1.1rem 1.15rem;
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+      }
+      .kpi-label {
+        color: var(--muted);
+        font-size: 0.7rem;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .kpi-value {
+        margin-top: 0.15rem;
+        font-size: 1.15rem;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .kpi-detail {
+        color: var(--muted);
+        font-size: 0.82rem;
+      }
+      .kpi-swatch {
+        position: absolute;
+        top: 0.9rem;
+        right: 1rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 1.85rem;
+        height: 1.4rem;
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        font-size: 0.65rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+      }
+      .kpi-links {
+        gap: 0.45rem;
+      }
+      .kpi-links a {
+        color: var(--fg);
+        font-size: 0.88rem;
+        text-decoration: none;
+      }
+      .kpi-links a:hover {
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
+      }
+
+      /* ---------- Toasts ---------- */
+      .dash-toast {
+        margin: 0 0 1.25rem;
+        padding: 0.6rem 0.85rem;
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        font-size: 0.85rem;
+      }
+      .dash-toast.ok {
+        border-color: #01ed7e;
+        color: #01ed7e;
+      }
+      .dash-toast.err {
+        border-color: #ff6b66;
+        color: #ff6b66;
+      }
+
+      /* ---------- Form ---------- */
+      .form-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+        gap: 1.5rem;
+        align-items: start;
+      }
+      .form-fields {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+      }
+      fieldset.card {
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+        margin: 0;
+        padding: 0.5rem 1.1rem 1.2rem;
+      }
+      fieldset.card legend {
+        padding: 0 0.4rem;
+        color: var(--muted);
+        font-size: 0.7rem;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .site-form label {
+        display: block;
+        margin-top: 0.95rem;
+        font-size: 0.85rem;
+      }
+      .site-form label .lbl {
+        display: block;
+        margin-bottom: 0.3rem;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+      .site-form label .lbl em {
+        margin-left: 0.4rem;
+        color: var(--muted);
+        font-size: 0.7rem;
+        font-style: normal;
+        opacity: 0.8;
+      }
+      .site-form input[type="text"],
+      .site-form input[type="url"],
+      .site-form input[type="number"],
+      .site-form input[type="date"],
+      .site-form select {
         display: block;
         width: 100%;
-        margin-top: 0.35rem;
-        padding: 0.5rem 0.6rem;
+        padding: 0.5rem 0.65rem;
         background: var(--bg);
         color: var(--fg);
         border: 1px solid var(--rule);
@@ -194,22 +717,295 @@ const isDev = import.meta.env.DEV;
         font: inherit;
         font-size: 0.9rem;
       }
-      input:focus {
+      .site-form select {
+        appearance: none;
+        background-image: linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+          linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+        background-position: right 1rem center, right 0.65rem center;
+        background-size: 0.35rem 0.35rem;
+        background-repeat: no-repeat;
+        padding-right: 1.75rem;
+      }
+      .site-form input:focus,
+      .site-form select:focus {
         outline: none;
         border-color: var(--fg);
       }
       .row {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 1rem;
+        gap: 0.8rem;
       }
+      .row label {
+        margin-top: 0;
+      }
+
+      .toggle {
+        display: flex !important;
+        align-items: center;
+        gap: 0.55rem;
+        margin-top: 0.85rem !important;
+        font-size: 0.92rem !important;
+      }
+      .toggle input {
+        width: auto;
+        margin: 0;
+      }
+
+      .color-section {
+        margin-top: 1.1rem;
+      }
+      .color-section > .lbl {
+        display: block;
+        margin-bottom: 0.45rem;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+      .color-controls {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.8rem;
+      }
+      .color-field {
+        display: grid;
+        grid-template-columns: 2.25rem 1fr;
+        grid-template-rows: auto auto;
+        column-gap: 0.5rem;
+        align-items: center;
+      }
+      .color-field input[type="color"] {
+        grid-row: 1 / 3;
+        width: 2.25rem;
+        height: 2.25rem;
+        padding: 0;
+        background: transparent;
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        cursor: pointer;
+      }
+      .color-field input[type="color"]::-webkit-color-swatch {
+        border: 0;
+        border-radius: 0;
+      }
+      .color-field input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 2px;
+      }
+      .color-field input[type="text"] {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.8rem;
+        text-transform: lowercase;
+      }
+      .color-field em {
+        color: var(--muted);
+        font-style: normal;
+        font-size: 0.7rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .color-presets {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.8rem;
+      }
+      .swatch {
+        width: 2.35rem;
+        height: 1.75rem;
+        padding: 0;
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        cursor: pointer;
+        transition: transform 0.12s ease, border-color 0.12s ease;
+      }
+      .swatch:hover {
+        transform: translateY(-1px);
+        border-color: var(--fg);
+      }
+
+      /* ---------- Itinerary combobox ---------- */
+      .itinerary {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: start;
+        gap: 0.85rem;
+        margin-top: 0.85rem;
+      }
+      .itinerary-arrow {
+        align-self: center;
+        margin-top: 1.55rem; /* drop arrow down past the .lbl row */
+        color: var(--muted);
+        font-size: 1.1rem;
+      }
+      .combo {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+      }
+      .combo .lbl {
+        display: block;
+        margin-bottom: 0.3rem;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+      .combo .lbl em {
+        margin-left: 0.4rem;
+        color: var(--muted);
+        font-size: 0.7rem;
+        font-style: normal;
+        opacity: 0.8;
+      }
+      .combo-input {
+        position: relative;
+      }
+      .combo-input input {
+        width: 100%;
+      }
+      .combo-status {
+        position: absolute;
+        top: 50%;
+        right: 0.55rem;
+        width: 0.55rem;
+        height: 0.55rem;
+        transform: translateY(-50%);
+        border-radius: 50%;
+        background: transparent;
+        transition: background 0.15s ease;
+      }
+      .combo.is-loading .combo-status {
+        background: var(--muted);
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      .combo.is-stale .combo-status {
+        background: #ff8a3d;
+      }
+      .combo.is-fresh .combo-status {
+        background: #01ed7e;
+      }
+      @keyframes pulse {
+        0%, 100% { opacity: 0.4; }
+        50% { opacity: 1; }
+      }
+      .combo-list {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        z-index: 5;
+        margin-top: 0.25rem;
+        max-height: 16rem;
+        overflow-y: auto;
+        padding: 0.25rem;
+        background: var(--bg);
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+      }
+      .combo-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.1rem;
+        width: 100%;
+        padding: 0.45rem 0.6rem;
+        background: transparent;
+        border: 0;
+        border-radius: 2px;
+        color: var(--fg);
+        font: inherit;
+        font-size: 0.85rem;
+        text-align: left;
+        cursor: pointer;
+      }
+      .combo-item:hover,
+      .combo-item.is-focused {
+        background: var(--rule);
+      }
+      .combo-item-row {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        width: 100%;
+        gap: 0.75rem;
+      }
+      .combo-item-label {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .combo-item-tag {
+        flex: 0 0 auto;
+        color: var(--muted);
+        font-size: 0.66rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .combo-item-coords {
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .combo-item.is-empty,
+      .combo-item.is-loading {
+        cursor: default;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+      .combo-meta {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+        margin-top: 0.4rem;
+        color: var(--muted);
+        font-size: 0.72rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .combo-meta .dot {
+        color: var(--rule);
+      }
+
+      .itinerary-summary {
+        display: flex;
+        align-items: baseline;
+        flex-wrap: wrap;
+        gap: 0.45rem;
+        margin: 1.1rem 0 0;
+        padding: 0.7rem 0.9rem;
+        background: rgba(255, 255, 255, 0.025);
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        color: var(--fg);
+        font-size: 0.88rem;
+      }
+      .itinerary-summary .arrow-sm {
+        color: var(--muted);
+      }
+      .itinerary-summary .dot {
+        color: var(--rule);
+      }
+      .itinerary-summary .flight-tag {
+        display: inline-flex;
+        align-items: baseline;
+        gap: 0.45rem;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+
       .actions {
         display: flex;
         align-items: center;
         gap: 1.25rem;
+        margin-top: 0.25rem;
       }
-      button {
-        padding: 0.6rem 1.4rem;
+      button[type="submit"] {
+        padding: 0.65rem 1.5rem;
         background: var(--fg);
         color: var(--bg);
         border: 0;
@@ -218,14 +1014,597 @@ const isDev = import.meta.env.DEV;
         font-weight: 600;
         cursor: pointer;
       }
-      button:disabled {
-        opacity: 0.45;
+      button[type="submit"]:disabled {
+        opacity: 0.4;
         cursor: not-allowed;
       }
       .view {
+        color: var(--muted);
         font-size: 0.85rem;
+        text-decoration: none;
+      }
+      .view:hover {
+        color: var(--fg);
+      }
+
+      /* ---------- Preview ---------- */
+      .form-preview {
+        position: sticky;
+        top: 1.5rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.7rem;
+        padding: 1.15rem 1.2rem 1.4rem;
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.015);
+      }
+      .form-preview h3 {
+        margin: 0;
+        color: var(--fg);
+        font-size: 0.85rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+      }
+      .preview-tag {
+        margin-top: 0.35rem;
+        color: var(--muted);
+        font-size: 0.66rem;
+        font-weight: 500;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+      }
+      .preview-frame {
+        position: relative;
+        overflow: hidden;
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        background: #0a0a09;
+      }
+      .preview-banner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        width: 100%;
+        min-height: 2rem;
+        padding: 0.5rem 0.8rem;
+        background: var(--banner-bg, #01ed7e);
+        color: var(--banner-fg, #000);
+        font-size: 0.58rem;
+        font-weight: 600;
+        letter-spacing: 0.11em;
+        line-height: 1.3;
+        text-align: center;
+        text-transform: uppercase;
+      }
+      .preview-banner a {
+        color: var(--banner-fg, #000);
+        text-decoration: underline;
+        text-decoration-color: color-mix(
+          in srgb,
+          var(--banner-fg, #000) 45%,
+          transparent
+        );
+        text-underline-offset: 0.18em;
+        white-space: nowrap;
+      }
+      .preview-banner[data-enabled="false"] {
+        display: none;
+      }
+      .preview-disabled {
+        padding: 0.6rem 0.8rem;
+        color: var(--muted);
+        font-size: 0.72rem;
+        text-align: center;
+        border-bottom: 1px solid var(--rule);
+      }
+      .preview-page {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.55rem;
+        padding: 1.6rem 0.8rem 1.4rem;
+      }
+      .preview-hero {
+        color: #f3f3ef;
+        font-size: 1.1rem;
+        font-weight: 500;
+        letter-spacing: -0.01em;
+      }
+      .preview-page-stub {
+        width: 70%;
+        height: 0.35rem;
+        background: var(--rule);
+        border-radius: 999px;
+      }
+
+      .preview-globe {
+        padding: 0.95rem 1.05rem 1.1rem;
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+      }
+      .preview-globe dl {
+        margin: 0;
+        display: grid;
+        gap: 0.55rem;
+      }
+      .preview-globe dt {
+        color: var(--muted);
+        font-size: 0.66rem;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+      .preview-globe dd {
+        margin: 0.1rem 0 0;
+        color: var(--fg);
+        font-size: 0.9rem;
+      }
+      .preview-eta {
+        display: block;
+        margin-top: 0.15rem;
+        color: var(--muted);
+        font-size: 0.78rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .preview-arrow {
         color: var(--muted);
       }
+      #previewHomeCoords,
+      #previewDestCoords {
+        font-variant-numeric: tabular-nums;
+        font-size: 0.8rem;
+      }
+
+      /* ---------- Mobile ---------- */
+      @media (max-width: 760px) {
+        .form-grid {
+          grid-template-columns: 1fr;
+        }
+        .form-preview {
+          position: static;
+        }
+        .itinerary {
+          grid-template-columns: 1fr;
+        }
+        .itinerary-arrow {
+          margin-top: 0;
+          justify-self: center;
+          transform: rotate(90deg);
+        }
+      }
+      @media (max-width: 420px) {
+        .dash-taskbar {
+          grid-template-columns: repeat(2, 1fr);
+        }
+        .dash-taskbar .tab:nth-child(2) {
+          border-right: 0;
+        }
+        .dash-taskbar .tab:nth-child(-n + 2) {
+          border-bottom: 1px solid var(--rule);
+        }
+      }
     </style>
+
+    <script>
+      // ---------- Tab switching ----------
+      const tabs = document.querySelectorAll<HTMLElement>(".dash-taskbar .tab[data-tab]");
+      const panes = document.querySelectorAll<HTMLElement>(".dash-pane[data-pane]");
+      function showTab(key: string) {
+        tabs.forEach((t) =>
+          t.classList.toggle("is-active", t.dataset.tab === key),
+        );
+        panes.forEach((p) => (p.hidden = p.dataset.pane !== key));
+      }
+      tabs.forEach((t) => {
+        t.addEventListener("click", (e) => {
+          e.preventDefault();
+          const key = t.dataset.tab!;
+          history.replaceState(null, "", "#" + key);
+          showTab(key);
+        });
+      });
+      const initial = (location.hash || "#overview").slice(1);
+      if ([...tabs].some((t) => t.dataset.tab === initial)) showTab(initial);
+      window.addEventListener("hashchange", () => {
+        const key = location.hash.slice(1);
+        if ([...tabs].some((t) => t.dataset.tab === key)) showTab(key);
+      });
+
+      // ---------- Banner: text + link live preview ----------
+      const $ = <T extends HTMLElement>(id: string) =>
+        document.getElementById(id) as T | null;
+      const bind = (
+        inputId: string,
+        bindKey: string,
+        attr: "text" | "href" = "text",
+      ) => {
+        const input = $<HTMLInputElement>(inputId);
+        const target = document.querySelector<HTMLElement>(
+          `[data-bind="${bindKey}"]`,
+        );
+        if (!input || !target) return;
+        input.addEventListener("input", () => {
+          if (attr === "text") target.textContent = input.value;
+          else target.setAttribute("href", input.value);
+        });
+      };
+      bind("bannerPrefix", "bannerPrefix");
+      bind("bannerText", "bannerText");
+      bind("bannerLinkLabel", "bannerLink");
+      bind("bannerLinkHref", "bannerLink", "href");
+
+      // ---------- Banner: enable toggle ----------
+      const bannerEnabled = $<HTMLInputElement>("bannerEnabled");
+      const previewBanner = $<HTMLElement>("previewBanner");
+      const previewDisabled =
+        document.querySelector<HTMLElement>(".preview-disabled");
+      bannerEnabled?.addEventListener("change", () => {
+        const on = bannerEnabled.checked;
+        previewBanner?.setAttribute("data-enabled", String(on));
+        if (previewDisabled) previewDisabled.hidden = on;
+      });
+
+      // ---------- Banner: color picker ↔ hex sync ----------
+      function syncColor(pickerId: string, hexId: string, cssVar: string) {
+        const picker = $<HTMLInputElement>(pickerId);
+        const hex = $<HTMLInputElement>(hexId);
+        if (!picker || !hex || !previewBanner) return;
+        const apply = (val: string) => {
+          previewBanner.style.setProperty(cssVar, val);
+        };
+        picker.addEventListener("input", () => {
+          hex.value = picker.value;
+          apply(picker.value);
+        });
+        hex.addEventListener("input", () => {
+          const v = hex.value.trim();
+          if (/^#[0-9a-fA-F]{6}$/.test(v)) {
+            picker.value = v;
+            apply(v);
+          }
+        });
+      }
+      syncColor("bannerBg", "bannerBgHex", "--banner-bg");
+      syncColor("bannerFg", "bannerFgHex", "--banner-fg");
+
+      // ---------- Banner palette chips ----------
+      document.querySelectorAll<HTMLButtonElement>(".swatch").forEach((sw) => {
+        sw.addEventListener("click", () => {
+          const bg = sw.dataset.bg!;
+          const fg = sw.dataset.fg!;
+          const bgP = $<HTMLInputElement>("bannerBg")!;
+          const fgP = $<HTMLInputElement>("bannerFg")!;
+          const bgH = $<HTMLInputElement>("bannerBgHex")!;
+          const fgH = $<HTMLInputElement>("bannerFgHex")!;
+          bgP.value = bg;
+          bgH.value = bg;
+          fgP.value = fg;
+          fgH.value = fg;
+          previewBanner?.style.setProperty("--banner-bg", bg);
+          previewBanner?.style.setProperty("--banner-fg", fg);
+        });
+      });
+
+      // ---------- Itinerary combobox (geocoder) ----------
+      // Free-text "From → To" inputs with autocomplete. Local CITIES list gives
+      // instant matches; Nominatim (OpenStreetMap) fills in any address; once a
+      // home city is picked we look up its IANA timezone via timeapi.io so the
+      // globe's clock stays in sync. No API keys required.
+      type City = {
+        key: string;
+        label: string;
+        lat: number;
+        lon: number;
+        timezone: string;
+      };
+      const citiesEl = document.getElementById("cities-data");
+      const cities: City[] = citiesEl
+        ? JSON.parse(citiesEl.textContent || "[]")
+        : [];
+
+      const fmtLat = (lat: number) =>
+        `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? "N" : "S"}`;
+      const fmtLon = (lon: number) =>
+        `${Math.abs(lon).toFixed(4)}° ${lon >= 0 ? "E" : "W"}`;
+      const esc = (s: string) =>
+        s
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+
+      type Suggestion = {
+        label: string;
+        display: string;
+        lat: number;
+        lon: number;
+        tz?: string;
+        source: "preset" | "search";
+      };
+
+      function presetMatches(q: string, limit = 3): Suggestion[] {
+        const Q = q.toLowerCase();
+        return cities
+          .filter((c) => c.label.toLowerCase().includes(Q))
+          .slice(0, limit)
+          .map((c) => ({
+            label: c.label,
+            display: c.label,
+            lat: c.lat,
+            lon: c.lon,
+            tz: c.timezone,
+            source: "preset" as const,
+          }));
+      }
+
+      async function nominatim(
+        q: string,
+        signal: AbortSignal,
+      ): Promise<Suggestion[]> {
+        const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q)}&format=json&limit=6`;
+        const res = await fetch(url, {
+          headers: { Accept: "application/json" },
+          signal,
+        });
+        if (!res.ok) return [];
+        const data: any[] = await res.json();
+        return data.map((r) => {
+          const display: string = r.display_name;
+          return {
+            label: display.split(",")[0].trim(),
+            display,
+            lat: parseFloat(r.lat),
+            lon: parseFloat(r.lon),
+            source: "search" as const,
+          };
+        });
+      }
+
+      async function lookupTz(lat: number, lon: number): Promise<string | null> {
+        try {
+          const res = await fetch(
+            `https://timeapi.io/api/TimeZone/coordinate?latitude=${lat}&longitude=${lon}`,
+          );
+          if (!res.ok) return null;
+          const data: any = await res.json();
+          return typeof data.timeZone === "string" ? data.timeZone : null;
+        } catch {
+          return null;
+        }
+      }
+
+      function setupCombo(scope: "home" | "dest", withTz: boolean) {
+        const root = document.querySelector<HTMLElement>(
+          `.combo[data-scope="${scope}"]`,
+        );
+        if (!root) return;
+        const input = root.querySelector<HTMLInputElement>(
+          "input[type='text']",
+        )!;
+        const list = root.querySelector<HTMLElement>(".combo-list")!;
+        const latEl = $<HTMLInputElement>(scope + "Lat")!;
+        const lonEl = $<HTMLInputElement>(scope + "Lon")!;
+        const tzEl = withTz ? $<HTMLInputElement>(scope + "Tz") : null;
+        const coordsMeta = root.querySelector<HTMLElement>(
+          '[data-meta="coords"]',
+        )!;
+        const tzMeta = root.querySelector<HTMLElement>('[data-meta="tz"]');
+
+        let debounce = 0;
+        let ctl: AbortController | null = null;
+        // Track the label that matches the currently-selected coords. If the
+        // user edits past this without picking a new suggestion, the combobox
+        // shows an "is-stale" dot — coords no longer reflect the typed label.
+        let lockedLabel = input.value.trim();
+
+        function setState(state: "" | "stale" | "fresh" | "loading") {
+          root.classList.remove("is-stale", "is-fresh", "is-loading");
+          if (state) root.classList.add("is-" + state);
+        }
+
+        function render(items: Suggestion[], status: "" | "empty" | "error" = "") {
+          if (status === "empty") {
+            list.innerHTML = `<div class="combo-item is-empty">No matches</div>`;
+          } else if (status === "error") {
+            list.innerHTML = `<div class="combo-item is-empty">Search failed — try again.</div>`;
+          } else {
+            list.innerHTML = items
+              .map(
+                (s, i) => `
+                  <button type="button" class="combo-item" data-i="${i}">
+                    <div class="combo-item-row">
+                      <span class="combo-item-label">${esc(s.display)}</span>
+                      <span class="combo-item-tag">${s.source}</span>
+                    </div>
+                    <span class="combo-item-coords">${fmtLat(s.lat)} · ${fmtLon(s.lon)}</span>
+                  </button>`,
+              )
+              .join("");
+            list
+              .querySelectorAll<HTMLButtonElement>(".combo-item[data-i]")
+              .forEach((el) => {
+                // mousedown prevents the input from losing focus & hiding the list
+                // before the click registers.
+                el.addEventListener("mousedown", (e) => e.preventDefault());
+                el.addEventListener("click", () => {
+                  const i = parseInt(el.dataset.i!, 10);
+                  pick(items[i]);
+                });
+              });
+          }
+          list.hidden = false;
+        }
+
+        async function pick(s: Suggestion) {
+          input.value = s.label;
+          latEl.value = String(s.lat);
+          lonEl.value = String(s.lon);
+          coordsMeta.textContent = `${fmtLat(s.lat)} · ${fmtLon(s.lon)}`;
+          if (tzEl && tzMeta) {
+            if (s.tz) {
+              tzEl.value = s.tz;
+              tzMeta.textContent = s.tz;
+            } else {
+              tzMeta.textContent = "looking up…";
+              const tz = await lookupTz(s.lat, s.lon);
+              if (tz) {
+                tzEl.value = tz;
+                tzMeta.textContent = tz;
+              } else {
+                tzMeta.textContent = tzEl.value || "—";
+              }
+            }
+          }
+          list.hidden = true;
+          lockedLabel = input.value.trim();
+          setState("fresh");
+          updateAfterPick();
+        }
+
+        input.addEventListener("input", () => {
+          const q = input.value.trim();
+          updateAfterPick(); // keep summary/preview labels in sync as user types
+          window.clearTimeout(debounce);
+          if (q.length < 2) {
+            list.hidden = true;
+            setState(q === lockedLabel ? "" : "stale");
+            return;
+          }
+          setState("loading");
+          debounce = window.setTimeout(async () => {
+            ctl?.abort();
+            ctl = new AbortController();
+            const presets = presetMatches(q);
+            try {
+              const remote = await nominatim(q, ctl.signal);
+              const deduped = remote.filter(
+                (r) =>
+                  !presets.some(
+                    (p) =>
+                      Math.abs(p.lat - r.lat) < 0.1 &&
+                      Math.abs(p.lon - r.lon) < 0.1,
+                  ),
+              );
+              const merged = [...presets, ...deduped].slice(0, 8);
+              if (!merged.length) render([], "empty");
+              else render(merged);
+            } catch (e: any) {
+              if (e?.name === "AbortError") return;
+              if (presets.length) render(presets);
+              else render([], "error");
+            } finally {
+              setState(input.value.trim() === lockedLabel ? "" : "stale");
+            }
+          }, 280);
+        });
+
+        input.addEventListener("blur", () => {
+          window.setTimeout(() => (list.hidden = true), 150);
+        });
+        input.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") list.hidden = true;
+        });
+      }
+
+      setupCombo("home", true);
+      setupCombo("dest", false);
+
+      // ---------- Preview / summary updates ----------
+      function updateAfterPick() {
+        updatePreviewLabels();
+        updateSummary();
+        updateCoordsPreview();
+      }
+
+      function currentLatLon(scope: "home" | "dest") {
+        const latEl = $<HTMLInputElement>(scope + "Lat");
+        const lonEl = $<HTMLInputElement>(scope + "Lon");
+        return {
+          lat: parseFloat(latEl?.value || "0"),
+          lon: parseFloat(lonEl?.value || "0"),
+        };
+      }
+      function updateCoordsPreview() {
+        const h = currentLatLon("home");
+        const d = currentLatLon("dest");
+        const homeEl = $<HTMLElement>("previewHomeCoords");
+        const destEl = $<HTMLElement>("previewDestCoords");
+        if (homeEl) homeEl.textContent = `${fmtLat(h.lat)} · ${fmtLon(h.lon)}`;
+        if (destEl) destEl.textContent = `${fmtLat(d.lat)} · ${fmtLon(d.lon)}`;
+      }
+      function updatePreviewLabels() {
+        const homeLabel = $<HTMLInputElement>("homeLabel")?.value || "";
+        const destLabel = $<HTMLInputElement>("destLabel")?.value || "";
+        document
+          .querySelectorAll<HTMLElement>('[data-bind="homeLabel"]')
+          .forEach((el) => (el.textContent = homeLabel));
+        document
+          .querySelectorAll<HTMLElement>('[data-bind="destLabel"]')
+          .forEach((el) => (el.textContent = destLabel));
+      }
+      function updateSummary() {
+        const homeLabel = $<HTMLInputElement>("homeLabel")?.value || "";
+        const destLabel = $<HTMLInputElement>("destLabel")?.value || "";
+        const arrivalVal = $<HTMLInputElement>("arrival")?.value || "";
+        const flight = $<HTMLInputElement>("flight")?.value.trim() || "";
+        const sFrom = $<HTMLElement>("summaryFrom");
+        const sTo = $<HTMLElement>("summaryTo");
+        const sDate = $<HTMLElement>("summaryDate");
+        const sFlight = $<HTMLElement>("summaryFlight");
+        if (sFrom) sFrom.textContent = homeLabel;
+        if (sTo) sTo.textContent = destLabel;
+        if (sDate && arrivalVal) {
+          const d = new Date(arrivalVal + "T00:00:00");
+          sDate.textContent = d.toLocaleDateString("en-US", {
+            weekday: "short",
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+        }
+        if (sFlight) {
+          sFlight.hidden = !flight;
+          const flightSpan = sFlight.querySelector<HTMLElement>(
+            '[data-bind="flight"]',
+          );
+          if (flightSpan) flightSpan.textContent = flight;
+        }
+        // Globe-panel preview row for the flight
+        const flightRow = $<HTMLElement>("previewFlightRow");
+        const flightPreview = document.querySelector<HTMLElement>(
+          '[data-bind="flightPreview"]',
+        );
+        if (flightRow) flightRow.hidden = !flight;
+        if (flightPreview) flightPreview.textContent = flight;
+      }
+
+      $<HTMLInputElement>("arrival")?.addEventListener("input", updateSummary);
+      $<HTMLInputElement>("flight")?.addEventListener("input", updateSummary);
+
+      // ---------- Live countdown ----------
+      const countdownEl = $<HTMLElement>("previewCountdown");
+      const arrivalEl = $<HTMLInputElement>("arrival");
+      function pad(n: number) {
+        return String(n).padStart(2, "0");
+      }
+      function tickCountdown() {
+        if (!countdownEl || !arrivalEl?.value) return;
+        const target = new Date(arrivalEl.value + "T00:00:00").getTime();
+        let s = Math.max(0, Math.floor((target - Date.now()) / 1000));
+        const dd = Math.floor(s / 86400);
+        s -= dd * 86400;
+        const hh = Math.floor(s / 3600);
+        s -= hh * 3600;
+        const mm = Math.floor(s / 60);
+        s -= mm * 60;
+        countdownEl.textContent = `${pad(dd)}:${pad(hh)}:${pad(mm)}:${pad(s)}`;
+      }
+      arrivalEl?.addEventListener("input", tickCountdown);
+      tickCountdown();
+      setInterval(tickCountdown, 1000);
+    </script>
   </body>
 </html>

@@ -1,5 +1,5 @@
 import type { APIRoute } from "astro";
-import { STATE_COOKIE, randomToken } from "../../lib/auth";
+import { STATE_COOKIE, randomToken } from "../../../lib/auth";
 
 export const prerender = false;
 
@@ -7,7 +7,7 @@ export const GET: APIRoute = ({ locals, cookies, url, redirect }) => {
   const env = (locals as any).runtime?.env ?? {};
   const clientId = env.GOOGLE_CLIENT_ID as string | undefined;
 
-  // Unconfigured (e.g. local dev): the panel is open via the dev bypass.
+  // Unconfigured (e.g. local dev): the dashboard is open via the dev bypass.
   if (!clientId) return redirect("/admin");
 
   const state = randomToken();

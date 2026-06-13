@@ -14,6 +14,10 @@ const location = z.object({
   lon: z.number().min(-180).max(180),
 });
 
+const hexColor = z
+  .string()
+  .regex(/^#[0-9a-fA-F]{6}$/, "Use a #RRGGBB hex color");
+
 export const siteSchema = z.object({
   banner: z.object({
     enabled: z.boolean(),
@@ -21,12 +25,16 @@ export const siteSchema = z.object({
     text: z.string().min(1),
     linkLabel: z.string().min(1),
     linkHref: z.string().url(),
+    bg: hexColor.default("#01ed7e"),
+    fg: hexColor.default("#000000"),
   }),
   travel: z.object({
     home: location.extend({ timezone: z.string().min(1) }),
     destination: location,
     // Arrival date as YYYY-MM-DD (the globe counts down to this).
     arrival: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
+    // Optional flight code (e.g. "UA853"). Empty string = no flight.
+    flight: z.string().default(""),
   }),
 });
 
