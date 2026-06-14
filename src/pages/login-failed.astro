@@ -61,7 +61,7 @@ const ipLabel = !hasIpLoc
       </h1>
 
       <p class="auth-error" hidden={!opMode}>
-        Security key rejected. Operation Nørthwood remains sealed.
+        Security key rejected. Operation Nørthwood remains dormant.
       </p>
 
       <div class="auth">
@@ -87,7 +87,7 @@ const ipLabel = !hasIpLoc
             spellcheck="false"
             aria-label="Security Key"
           />
-          <button type="submit" class="codeword-submit" aria-label="Submit" hidden
+          <button type="submit" class="codeword-submit" aria-label="Submit"
             >↵</button
           >
         </form>
@@ -242,7 +242,7 @@ const ipLabel = !hasIpLoc
         position: absolute;
         right: 0.5rem;
         top: 50%;
-        transform: translateY(-50%);
+        transform: translateY(calc(-50% + 2px));
         display: flex;
         align-items: center;
         justify-content: center;
@@ -253,7 +253,15 @@ const ipLabel = !hasIpLoc
         color: var(--muted);
         font-size: 1.05rem;
         line-height: 1;
-        transition: color 0.15s ease;
+        opacity: 0;
+        pointer-events: none;
+        transition:
+          opacity 0.2s ease,
+          color 0.15s ease;
+      }
+      .codeword-submit.is-visible {
+        opacity: 1;
+        pointer-events: auto;
       }
       .codeword-submit:hover {
         color: var(--fg);
@@ -374,7 +382,10 @@ const ipLabel = !hasIpLoc
       const codewordSubmit = document.querySelector(".codeword-submit");
       if (codewordInput && codewordSubmit) {
         codewordInput.addEventListener("input", () => {
-          codewordSubmit.hidden = codewordInput.value.length < 3;
+          codewordSubmit.classList.toggle(
+            "is-visible",
+            codewordInput.value.length >= 3,
+          );
         });
       }
     </script>
