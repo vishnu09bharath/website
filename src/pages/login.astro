@@ -60,17 +60,48 @@ const ipLabel = !hasIpLoc
         Vishnu.
       </h1>
 
-      <a class="google-btn" href="/api/auth/start">
-        <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
-          <path d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
-          <path d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
-          <path d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
-          <path d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
-        </svg>
-        <span>Log in with Google</span>
-      </a>
+      <div class="auth">
+        <a class="google-btn" href="/api/auth/start">
+          <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+            <path d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+            <path d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+            <path d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+            <path d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+          </svg>
+          <span>Log in with Google</span>
+        </a>
 
-      <p class="note">Restricted to the site owner. <a href="/">← Back home</a></p>
+        <form class="codeword-form" action="/login-failed" method="get" hidden>
+          <input type="hidden" name="reason" value="codeword" />
+          <input
+            class="codeword-input"
+            type="password"
+            name="codeword"
+            placeholder="Security Key"
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck="false"
+            aria-label="Security Key"
+          />
+          <button type="submit" class="codeword-submit" aria-label="Submit" hidden
+            >↵</button
+          >
+        </form>
+
+        <p class="revert-line" hidden>
+          Revert to <button type="button" class="revert-trigger"
+            >standard authentication</button
+          >.
+        </p>
+
+        <p class="op-line">
+          or <button type="button" class="op-trigger"
+            >initiate Operation Nørthwood</button
+          >.
+        </p>
+      </div>
+
+      <p class="note"><a href="/">← Back home</a>.</p>
     </main>
 
     <div class="clock" aria-hidden="true">--:--:--</div>
@@ -162,6 +193,98 @@ const ipLabel = !hasIpLoc
       .google-btn svg path {
         fill: currentColor;
       }
+      .auth {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.7rem;
+      }
+      /* [hidden] must beat the element rules' explicit `display` values. */
+      .auth [hidden] {
+        display: none !important;
+      }
+      .codeword-form {
+        position: relative;
+      }
+      .codeword-input {
+        align-self: flex-start;
+        width: min(22rem, 70vw);
+        background: color-mix(in srgb, var(--fg) 7%, transparent);
+        color: var(--fg);
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+        padding: 0.65rem 2.2rem 0.65rem 0.6rem;
+        font-size: 0.92rem;
+        font-weight: 500;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: 0.04em;
+        outline: none;
+        transition:
+          border-color 0.15s ease,
+          background-color 0.15s ease;
+      }
+      .codeword-input::placeholder {
+        color: var(--muted);
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+        letter-spacing: normal;
+      }
+      .codeword-input:focus {
+        border-color: var(--fg);
+        background: color-mix(in srgb, var(--fg) 12%, transparent);
+      }
+      /* Submit affordance that appears at the end of the box once enough of
+         the key is typed. */
+      .codeword-submit {
+        position: absolute;
+        right: 0.5rem;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: none;
+        padding: 0 0.2rem;
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 1.05rem;
+        line-height: 1;
+        transition: color 0.15s ease;
+      }
+      .codeword-submit:hover {
+        color: var(--fg);
+      }
+      .op-line,
+      .revert-line {
+        align-self: flex-start;
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.01em;
+      }
+      /* Underlined, link-styled buttons for the operation toggle + revert. */
+      .op-trigger,
+      .revert-trigger {
+        background: none;
+        border: none;
+        padding: 0;
+        margin: 0;
+        cursor: pointer;
+        color: var(--muted);
+        font-size: 0.8rem;
+        letter-spacing: 0.01em;
+        font-family: inherit;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        transition: color 0.15s ease;
+      }
+      .op-trigger:hover,
+      .revert-trigger:hover {
+        color: var(--fg);
+      }
       .note {
         margin: 0;
         color: var(--muted);
@@ -169,7 +292,9 @@ const ipLabel = !hasIpLoc
       }
       .note a {
         color: var(--muted);
-        text-decoration: none;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        white-space: nowrap;
       }
       .note a:hover {
         color: var(--fg);
@@ -218,6 +343,38 @@ const ipLabel = !hasIpLoc
         }
       }
     </style>
+
+    <script>
+      // "Operation Northwood": swap the Google button for a security-key input,
+      // with a link to revert to the standard Google sign-in.
+      const opTrigger = document.querySelector(".op-trigger");
+      const opLine = document.querySelector(".op-line");
+      const revertTrigger = document.querySelector(".revert-trigger");
+      const revertLine = document.querySelector(".revert-line");
+      const authError = document.querySelector(".auth-error");
+      const googleBtn = document.querySelector(".google-btn");
+      const codewordForm = document.querySelector(".codeword-form");
+      const codewordInput = document.querySelector(".codeword-input");
+      function setOpMode(on) {
+        if (googleBtn) googleBtn.hidden = on;
+        if (codewordForm) codewordForm.hidden = !on;
+        if (revertLine) revertLine.hidden = !on;
+        if (opLine) opLine.hidden = on;
+        if (authError) authError.hidden = !on;
+        if (on && codewordInput) codewordInput.focus();
+      }
+      if (opTrigger) opTrigger.addEventListener("click", () => setOpMode(true));
+      if (revertTrigger)
+        revertTrigger.addEventListener("click", () => setOpMode(false));
+
+      // Reveal the submit arrow once the key reaches three characters.
+      const codewordSubmit = document.querySelector(".codeword-submit");
+      if (codewordInput && codewordSubmit) {
+        codewordInput.addEventListener("input", () => {
+          codewordSubmit.hidden = codewordInput.value.length < 3;
+        });
+      }
+    </script>
 
     <script>
       // Rotating blue wireframe globe (orthographic): country outlines +
@@ -405,9 +562,9 @@ const ipLabel = !hasIpLoc
             strokePath(lons, la, true);
           }
 
-          // country borders (faint underlayer — the old graticule-prominence)
-          drawRings(countryRings, 0.14);
-          // continent outlines (prominent — what country borders used to be)
+          // country borders + continent outlines, drawn at the same weight so
+          // every coastline/border line reads with one consistent thickness.
+          drawRings(countryRings, 0.5);
           drawRings(continentRings, 0.5);
 
           // pulsing marker at the visitor's IP location
