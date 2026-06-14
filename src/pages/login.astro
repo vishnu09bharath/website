@@ -29,6 +29,8 @@ const ipLabel = !hasIpLoc
   : placeParts.length
     ? placeParts.join(", ")
     : `${fmtLat(ipLat as number)} ${fmtLon(ipLon as number)}`;
+
+const year = new Date().getFullYear();
 ---
 
 <!doctype html>
@@ -103,6 +105,12 @@ const ipLabel = !hasIpLoc
 
       <p class="note"><a href="/">← Back home</a>.</p>
     </main>
+
+    <footer class="login-footer">
+      <span class="footer-copy">© {year} Vishnu Bharath</span>
+      <span class="dot" aria-hidden="true">·</span>
+      <a class="footer-privacy" href="/privacy/">Privacy</a>
+    </footer>
 
     <div class="clock" aria-hidden="true">--:--:--</div>
 
@@ -298,6 +306,32 @@ const ipLabel = !hasIpLoc
       }
       .note a:hover {
         color: var(--fg);
+      }
+      .login-footer {
+        position: fixed;
+        left: clamp(1.5rem, 6vw, 5rem);
+        bottom: 1rem;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin: 0;
+        padding: 0;
+        border-top: none;
+        color: var(--muted);
+        font-size: 0.8rem;
+      }
+      .login-footer .footer-privacy {
+        color: var(--muted);
+        text-decoration: underline;
+        text-underline-offset: 2px;
+        white-space: nowrap;
+      }
+      .login-footer .footer-privacy:hover {
+        color: var(--fg);
+      }
+      .login-footer .dot {
+        opacity: 0.6;
       }
       .clock {
         position: fixed;
