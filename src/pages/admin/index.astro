@@ -376,9 +376,12 @@ const fmtLon = (lon: number) =>
                         <span data-meta="coords">
                           {fmtLat(site.travel.destination.lat)} · {fmtLon(site.travel.destination.lon)}
                         </span>
+                        <span class="dot" aria-hidden="true">·</span>
+                        <span data-meta="tz">{site.travel.destination.timezone}</span>
                       </div>
                       <input type="hidden" id="destLat" name="destLat" value={site.travel.destination.lat} />
                       <input type="hidden" id="destLon" name="destLon" value={site.travel.destination.lon} />
+                      <input type="hidden" id="destTz" name="destTz" value={site.travel.destination.timezone} />
                     </div>
                   </div>
 
@@ -1570,7 +1573,7 @@ const fmtLon = (lon: number) =>
       }
 
       setupCombo("home", true);
-      setupCombo("dest", false);
+      setupCombo("dest", true);
 
       // ---------- Preview / summary updates ----------
       function updateAfterPick() {

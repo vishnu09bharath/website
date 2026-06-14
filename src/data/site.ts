@@ -30,7 +30,7 @@ export const siteSchema = z.object({
   }),
   travel: z.object({
     home: location.extend({ timezone: z.string().min(1) }),
-    destination: location,
+    destination: location.extend({ timezone: z.string().min(1) }),
     // Arrival date as YYYY-MM-DD (the globe counts down to this).
     arrival: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
     // Optional flight code (e.g. "UA853"). Empty string = no flight.

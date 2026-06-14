@@ -36,6 +36,7 @@ export const POST: APIRoute = async ({ request, locals, cookies, redirect }) => 
         label: String(f.get("destLabel") ?? ""),
         lat: num(f.get("destLat")),
         lon: num(f.get("destLon")),
+        timezone: String(f.get("destTz") ?? ""),
       },
       arrival: String(f.get("arrival") ?? ""),
       flight: String(f.get("flight") ?? "").trim(),
