@@ -164,8 +164,14 @@ const config = {
     pointer-events: none;
   }
   .globe-canvas {
-    width: 100%;
-    height: 100%;
+    /* The drawing surface extends past the globe disk (see CANVAS_PAD in the
+       script) so the countdown box can paint just outside the rim without being
+       clipped by the canvas bounds. The globe itself stays centered and the
+       same visual size; the extra area is transparent. */
+    position: absolute;
+    inset: -15%;
+    width: 130%;
+    height: 130%;
     display: block;
   }
 
@@ -273,6 +279,12 @@ const config = {
     }
   }
 
+  // The canvas is rendered larger than the globe disk (matched by the CSS on
+  // .globe-canvas) so the countdown box can paint past the rim without being
+  // clipped by the canvas pixel bounds. R is scaled down to keep the globe the
+  // same visual size; the surrounding margin is transparent.
+  const CANVAS_PAD = 1.3;
+
   const PHI0 = (38 * Math.PI) / 180; // fixed viewing tilt
   const sinP = Math.sin(PHI0);
   const cosP = Math.cos(PHI0);
@@ -361,7 +373,9 @@ const config = {
       canvas.height = s;
       cx = s / 2;
       cy = s / 2;
-      R = s / 2 - dpr; // leave room for the rim stroke
+      // Globe radius is the canvas half-size divided by the padding factor, so
+      // the disk stays centered with transparent margin all around for the box.
+      R = Math.round(s / (2 * CANVAS_PAD)) - dpr; // leave room for the rim stroke
 
       landCanvas = document.createElement("canvas");
       landCanvas.width = s;
@@ -538,8 +552,11 @@ const config = {
       const d = project(DEST.lon, DEST.lat, lam);
       if (d.z >= 0) pulseDot(d.sx, d.sy, t);
 
-      // Countdown box mapped onto the midpoint of the line. It disappears
-      // before reaching the limb so it is never drawn cut off.
+      // Countdown box mapped onto the midpoint of the line. The z gate hides it
+      // once the midpoint rotates toward the back of the globe, so it still
+      // disappears when it goes to the other side. The enlarged canvas gives it
+      // room to paint past the rim; the clamp below is a final safety net so a
+      // wide label on a small (mobile) globe can never be cut off at the edge.
       const m = arcPoint(0.5);
       const mp = project(m.lon, m.lat, lam);
       if (mp.z > 0.22) {
@@ -552,12 +569,15 @@ const config = {
         ctx.font = `600 ${12 * dpr}px ui-sans-serif, system-ui, sans-serif`;
         const w = ctx.measureText(big).width + 16 * dpr;
         const h = 22 * dpr;
+        const s = cx * 2; // canvas pixel size (square)
+        const bx = Math.max(w / 2 + dpr, Math.min(s - w / 2 - dpr, mp.sx));
+        const by = Math.max(h / 2 + dpr, Math.min(s - h / 2 - dpr, mp.sy));
         ctx.fillStyle = `rgb(${BLUE})`;
         ctx.beginPath();
-        ctx.roundRect(mp.sx - w / 2, mp.sy - h / 2, w, h, 6 * dpr);
+        ctx.roundRect(bx - w / 2, by - h / 2, w, h, 6 * dpr);
         ctx.fill();
         ctx.fillStyle = "#fff";
-        ctx.fillText(big, mp.sx, mp.sy + 0.5 * dpr);
+        ctx.fillText(big, bx, by + 0.5 * dpr);
         ctx.restore();
       }
     }
