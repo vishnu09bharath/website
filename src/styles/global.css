@@ -369,6 +369,14 @@ a:hover {
   margin-top: 2.5rem;
 }
 
+.outdated-note {
+  margin-top: 2.5rem;
+  padding: 0.6rem 0.85rem;
+  border-left: 2px solid var(--rule);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .resume-sidebar div {
   margin-bottom: 0;
 }
