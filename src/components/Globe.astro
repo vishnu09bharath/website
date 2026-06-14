@@ -20,10 +20,26 @@ const fmtLat = (lat: number) =>
 const fmtLon = (lon: number) =>
   `${Math.abs(lon).toFixed(4)}° ${lon >= 0 ? "E" : "W"}`;
 
-// Values the client script needs (serialized into the DOM below).
+// Values the client script needs (serialized into the DOM below). Coordinate
+// strings are preformatted here so the client can swap the curved labels to the
+// destination once the arrival date passes without re-deriving the formatting.
 const config = {
-  home: { lat: home.lat, lon: home.lon, tz: home.timezone },
-  dest: { lat: destination.lat, lon: destination.lon },
+  home: {
+    lat: home.lat,
+    lon: home.lon,
+    tz: home.timezone,
+    label: home.label,
+    latText: fmtLat(home.lat),
+    lonText: fmtLon(home.lon),
+  },
+  dest: {
+    lat: destination.lat,
+    lon: destination.lon,
+    tz: destination.timezone,
+    label: destination.label,
+    latText: fmtLat(destination.lat),
+    lonText: fmtLon(destination.lon),
+  },
   arrival,
 };
 ---
@@ -42,12 +58,12 @@ const config = {
         <path id="coords-bot" d="M -8,50 A 58,58 0 0,0 108,50" />
       </defs>
       <text class="coords-text">
-        <textPath href="#coords-top" startOffset="50%" text-anchor="middle"
+        <textPath id="coords-lat" href="#coords-top" startOffset="50%" text-anchor="middle"
           >{fmtLat(home.lat)}</textPath
         >
       </text>
       <text class="coords-text">
-        <textPath href="#coords-bot" startOffset="50%" text-anchor="middle"
+        <textPath id="coords-lon" href="#coords-bot" startOffset="50%" text-anchor="middle"
           >{fmtLon(home.lon)}</textPath
         >
       </text>
@@ -58,13 +74,16 @@ const config = {
     <dl>
       <div>
         <dt>Location</dt>
-        <dd>{home.label}</dd>
+        <dd>
+          <span class="globe-loc-label">{home.label}</span>
+          <span class="globe-now"
+            >currently <span class="globe-clock" aria-live="off"
+              >--:--:--</span
+            ></span
+          >
+        </dd>
       </div>
-      <div>
-        <dt>Time</dt>
-        <dd class="globe-clock" aria-live="off">--:--:--</dd>
-      </div>
-      <div>
+      <div class="globe-next-row">
         <dt>Next</dt>
         <dd>
           {destination.label}
@@ -119,9 +138,6 @@ const config = {
     pointer-events: none;
     opacity: 1;
     transition: opacity 0.3s ease;
-  }
-  .globe-stage.open .globe-coords {
-    opacity: 0;
   }
   .coords-text {
     fill: var(--muted);
@@ -204,6 +220,7 @@ const config = {
   .globe-clock {
     font-variant-numeric: tabular-nums;
   }
+  .globe-now,
   .globe-next-eta {
     display: block;
     margin-top: 0.15rem;
@@ -229,16 +246,28 @@ const config = {
   let DEST = { lon: 120.1551, lat: 30.2741 };
   let TZ = "America/New_York";
   let ARRIVAL = new Date("2026-07-05T00:00:00");
+  // Full config kept around so the page-load handler can read the destination
+  // label/coords when flipping into the "arrived" state.
+  let CFG: any = null;
+  // True once the arrival date has passed: the destination becomes the current
+  // location and the travel line + "Next" panel are dropped.
+  let ARRIVED = false;
 
   function readTravelConfig() {
     const el = document.getElementById("globe-config");
     if (!el || !el.textContent) return;
     try {
       const c = JSON.parse(el.textContent);
-      HOME = { lon: c.home.lon, lat: c.home.lat };
+      CFG = c;
       DEST = { lon: c.dest.lon, lat: c.dest.lat };
-      TZ = c.home.tz;
       ARRIVAL = new Date(c.arrival + "T00:00:00");
+      ARRIVED = new Date().getTime() >= ARRIVAL.getTime();
+      // Once arrived, the destination *is* the current location, so the clock's
+      // timezone, the home dot, and the globe's starting facing all move there.
+      TZ = ARRIVED ? c.dest.tz : c.home.tz;
+      HOME = ARRIVED
+        ? { lon: c.dest.lon, lat: c.dest.lat }
+        : { lon: c.home.lon, lat: c.home.lat };
     } catch {
       /* keep defaults */
     }
@@ -547,7 +576,7 @@ const config = {
       ctx.strokeStyle = RIM;
       ctx.lineWidth = dpr;
       ctx.stroke();
-      if (state.open) drawArc(lam, now);
+      if (state.open && !ARRIVED) drawArc(lam, now);
       drawHome(lam, now);
       activeRaf = requestAnimationFrame(frame);
     }
@@ -582,12 +611,30 @@ const config = {
 
     readTravelConfig();
 
-    // The DOM is freshly created on each navigation and starts closed, so keep
-    // the persistent module state in sync — otherwise a stale `open` would draw
-    // the arc + countdown over a collapsed panel after navigating back.
-    state.open = false;
+    // Once the arrival date has passed, the destination becomes the current
+    // location: swap the curved coordinate labels and the panel's location to
+    // the destination, and drop the "Next" row (the canvas drops the travel line
+    // on its own via ARRIVED).
+    if (ARRIVED && CFG) {
+      const latText = document.getElementById("coords-lat");
+      const lonText = document.getElementById("coords-lon");
+      const locLabel = stage.querySelector<HTMLElement>(".globe-loc-label");
+      const nextRow = stage.querySelector<HTMLElement>(".globe-next-row");
+      if (latText) latText.textContent = CFG.dest.latText;
+      if (lonText) lonText.textContent = CFG.dest.lonText;
+      if (locLabel) locLabel.textContent = CFG.dest.label;
+      if (nextRow) nextRow.hidden = true;
+    }
+
+    // The DOM is freshly created on each navigation and defaults open, so keep
+    // the persistent module state in sync — the panel + arc show immediately and
+    // a click closes them.
+    state.open = true;
     state.openedAt = 0;
-    stage.classList.remove("open", "busy");
+    stage.classList.remove("busy");
+    stage.classList.add("open");
+    globeBtn?.setAttribute("aria-pressed", "true");
+    statusEl?.setAttribute("aria-hidden", "false");
 
     if (clockEl || countdownEl) {
       const fmt = new Intl.DateTimeFormat("en-US", {
