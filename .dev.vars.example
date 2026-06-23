@@ -12,3 +12,8 @@ AUTH_SECRET=
 
 # Only this Google account email may access /admin.
 ALLOWED_EMAIL=mr.vishnubharath@gmail.com
+
+# Cloudflare Workers AI REST API — used by the /news dashboard to rank stories.
+# In production set with `wrangler secret put CF_ACCOUNT_ID` / `... CF_AI_TOKEN`.
+CF_ACCOUNT_ID=
+CF_AI_TOKEN=

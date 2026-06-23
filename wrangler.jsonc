@@ -10,6 +10,11 @@
 		"global_fetch_strictly_public",
 		"nodejs_compat"
 	],
+	// Rebuild the curated /news feed every 30 min (cron half of the refresh).
+	// The scheduled() handler lives in src/worker.ts.
+	"triggers": {
+		"crons": ["*/30 * * * *"]
+	},
 	"assets": {
 		"binding": "ASSETS",
 		"directory": "dist"

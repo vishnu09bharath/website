@@ -605,6 +605,327 @@ footer a:hover {
   color: var(--fg);
 }
 
+/* ---------------------------------------------------------------- /news -- */
+
+/* The dashboard needs the full viewport, not the 40rem reading column. */
+body.news-body {
+  max-width: 76rem;
+  padding: 2rem 1.5rem 4rem;
+}
+
+.news-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  text-align: left;
+}
+
+.news-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.7rem;
+}
+
+.news-title h1 {
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.news-sub {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.news-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.news-tabs a {
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.news-tabs a:hover {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+
+.news-tabs a.is-active {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+}
+
+.news-tabs button {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.news-tabs button:hover {
+  color: var(--fg);
+  border-color: var(--fg);
+}
+
+.news-tabs button[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.news-empty {
+  margin-top: 4rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* Catch-up backlog: a horizontal strip of compact older stories. */
+.catchup {
+  margin-top: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+.catchup h2 {
+  margin: 0;
+}
+
+.catchup-note {
+  margin: 0.1rem 0 0.9rem;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.catchup-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(13rem, 1fr);
+  gap: 0.75rem;
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+  scrollbar-width: thin;
+}
+
+.catchup-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  text-decoration: none;
+  transition: border-color 0.15s ease;
+}
+
+.catchup-card:hover {
+  border-color: var(--fg);
+}
+
+.catchup-card .src {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.catchup-card .src img {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.catchup-card .ch-title {
+  color: var(--fg);
+  font-size: 0.88rem;
+  font-weight: 600;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.catchup-card time {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Masonry feed via CSS columns — thinner panes, naturally staggered lengths. */
+.news-grid {
+  margin-top: 2rem;
+  column-count: 4;
+  column-gap: 0.85rem;
+}
+
+@media (max-width: 1100px) {
+  .news-grid {
+    column-count: 3;
+  }
+}
+
+@media (max-width: 760px) {
+  .news-grid {
+    column-count: 2;
+  }
+}
+
+@media (max-width: 480px) {
+  .news-grid {
+    column-count: 1;
+  }
+}
+
+.pane {
+  position: relative;
+  break-inside: avoid;
+  margin-bottom: 0.85rem;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  background: #1a1a18;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.pane:hover {
+  border-color: #4a4a45;
+}
+
+.pane-link {
+  display: block;
+  padding: 0.85rem 0.9rem 1rem;
+  text-decoration: none;
+  color: var(--fg);
+}
+
+.pane-source {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.pane-source img {
+  width: 16px;
+  height: 16px;
+  border-radius: 3px;
+  flex: 0 0 auto;
+}
+
+.pane-cover {
+  display: block;
+  width: calc(100% + 1.8rem);
+  margin: 0.7rem -0.9rem 0;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.pane-title {
+  margin-top: 0.7rem;
+  font-size: 0.98rem;
+  font-weight: 600;
+  line-height: 1.28;
+  letter-spacing: -0.01em;
+}
+
+.pane-desc {
+  margin-top: 0.4rem;
+  color: var(--muted);
+  font-size: 0.83rem;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pane-time {
+  display: block;
+  margin-top: 0.6rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.pane-save {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: none;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--bg) 65%, transparent);
+  color: var(--muted);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease;
+}
+
+.pane-save svg {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linejoin: round;
+}
+
+.pane-save:hover {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+}
+
+.pane-save.is-saved {
+  color: var(--fg);
+}
+
+.pane-save.is-saved svg {
+  fill: var(--fg);
+}
+
+.pane-save[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.news-footer {
+  margin-top: 4rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--rule);
+  justify-content: flex-start;
+}
+
 footer .footer-privacy,
 footer .footer-login {
   text-decoration: underline;

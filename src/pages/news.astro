@@ -1,0 +1,197 @@
+---
+export const prerender = false;
+
+import "../styles/global.css";
+import { getAdmin } from "../lib/auth";
+import {
+  getFeed,
+  getCatchUp,
+  getSaved,
+  getState,
+  touchVisit,
+  type Article,
+} from "../lib/news";
+
+const env = (Astro.locals as any).runtime?.env;
+const login = await getAdmin(Astro.cookies, env);
+if (!login) return Astro.redirect("/login");
+
+const view = Astro.url.searchParams.get("view") === "saved" ? "saved" : "feed";
+
+// Read the prior visit BEFORE touching it, so catch-up reflects what's new since.
+const state = await getState(env);
+const feed = await getFeed(env); // rebuilds if older than 30 min
+const saved = await getSaved(env);
+const savedIds = new Set(saved.map((a) => a.id));
+
+const catchUp = view === "feed" ? await getCatchUp(env, feed.articles, state) : [];
+const articles: Article[] = view === "saved" ? saved : feed.articles;
+
+// Record this visit (after computing catch-up).
+await touchVisit(env);
+
+const builtAgo = feed.builtAt
+  ? Math.max(0, Math.round((Date.now() - feed.builtAt) / 60_000))
+  : null;
+
+function timeAgo(ms: number): string {
+  const diff = Date.now() - ms;
+  const h = Math.floor(diff / 3_600_000);
+  if (h < 1) return `${Math.max(1, Math.floor(diff / 60_000))}m ago`;
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>News — Vishnu Bharath</title>
+    <meta name="robots" content="noindex" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body class="news-body">
+    <header class="news-top">
+      <div class="news-title">
+        <h1>News</h1>
+        {
+          builtAgo !== null && (
+            <span class="news-sub">updated {builtAgo === 0 ? "just now" : `${builtAgo}m ago`}</span>
+          )
+        }
+      </div>
+      <nav class="news-tabs">
+        <a href="/news" class={view === "feed" ? "is-active" : ""}>Feed</a>
+        <a href="/news?view=saved" class={view === "saved" ? "is-active" : ""}>
+          Saved{saved.length ? ` (${saved.length})` : ""}
+        </a>
+        <button id="refresh" type="button" title="Rebuild the feed">↻</button>
+      </nav>
+    </header>
+
+    <main>
+      {
+        view === "feed" && catchUp.length > 0 && (
+          <section class="catchup">
+            <h2>Catch up</h2>
+            <p class="catchup-note">Older stories you haven't seen yet.</p>
+            <div class="catchup-row">
+              {catchUp.map((a) => (
+                <a class="catchup-card" href={a.url} target="_blank" rel="noopener" data-id={a.id}>
+                  <span class="src">
+                    {a.sourceLogo && <img src={a.sourceLogo} alt="" loading="lazy" />}
+                    {a.source}
+                  </span>
+                  <span class="ch-title">{a.title}</span>
+                  <time>{timeAgo(a.publishedAt)}</time>
+                </a>
+              ))}
+            </div>
+          </section>
+        )
+      }
+
+      {
+        articles.length === 0 ? (
+          <p class="news-empty">
+            {view === "saved"
+              ? "No saved stories yet — tap the bookmark on any pane."
+              : "No stories yet. Hit ↻ to build the feed."}
+          </p>
+        ) : (
+          <div class="news-grid">
+            {articles.map((a) => (
+              <article class="pane" data-id={a.id}>
+                <a
+                  class="pane-link"
+                  href={a.url}
+                  target="_blank"
+                  rel="noopener"
+                  data-article={JSON.stringify(a)}
+                >
+                  <div class="pane-source">
+                    {a.sourceLogo && <img src={a.sourceLogo} alt="" loading="lazy" />}
+                    <span>{a.source}</span>
+                  </div>
+                  {a.image && (
+                    <img class="pane-cover" src={a.image} alt="" loading="lazy" />
+                  )}
+                  <h3 class="pane-title">{a.title}</h3>
+                  {a.description && <p class="pane-desc">{a.description}</p>}
+                  <time class="pane-time">{timeAgo(a.publishedAt)}</time>
+                </a>
+                <button
+                  class={"pane-save" + (savedIds.has(a.id) ? " is-saved" : "")}
+                  type="button"
+                  aria-label="Save for later"
+                  data-article={JSON.stringify(a)}
+                >
+                  <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+                    <path d="M6 3h12a1 1 0 0 1 1 1v17l-7-4-7 4V4a1 1 0 0 1 1-1z" />
+                  </svg>
+                </button>
+              </article>
+            ))}
+          </div>
+        )
+      }
+    </main>
+
+    <footer class="news-footer">
+      <a href="/admin">← Admin</a>
+    </footer>
+
+    <script>
+      // Refresh: rebuild the feed server-side, then reload to show it.
+      const refresh = document.getElementById("refresh");
+      refresh?.addEventListener("click", async () => {
+        refresh.setAttribute("disabled", "true");
+        refresh.textContent = "…";
+        try {
+          await fetch("/api/news/refresh", { method: "POST" });
+        } finally {
+          location.reload();
+        }
+      });
+
+      // Save / unsave toggle.
+      document.querySelectorAll<HTMLButtonElement>(".pane-save").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const article = btn.dataset.article;
+          if (!article) return;
+          btn.disabled = true;
+          try {
+            const res = await fetch("/api/news/save", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ action: "save", article: JSON.parse(article) }),
+            });
+            const { saved } = await res.json();
+            btn.classList.toggle("is-saved", !!saved);
+          } catch {
+            /* leave state as-is on failure */
+          } finally {
+            btn.disabled = false;
+          }
+        });
+      });
+
+      // Mark read on click-through (beacon — fire and forget, don't block the nav).
+      function markRead(id: string) {
+        if (!id) return;
+        const body = JSON.stringify({ action: "read", id });
+        navigator.sendBeacon?.("/api/news/save", new Blob([body], { type: "application/json" }));
+      }
+      document.querySelectorAll<HTMLAnchorElement>(".pane-link, .catchup-card").forEach((a) => {
+        a.addEventListener("click", () => {
+          const id = (a.closest("[data-id]") as HTMLElement | null)?.dataset.id || a.dataset.id || "";
+          markRead(id);
+        });
+      });
+    </script>
+  </body>
+</html>
