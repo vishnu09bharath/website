@@ -9,5 +9,7 @@ export default defineConfig({
   // Dev-only element picker → Claude (see claude-element-picker/README.md).
   // No-op outside `astro dev`; nothing ships to production.
   integrations: [picker()],
-  adapter: cloudflare()
+  // Custom Worker entrypoint adds a scheduled() cron handler for the /news feed
+  // refresh alongside Astro's fetch handler (see src/worker.ts).
+  adapter: cloudflare({ workerEntryPoint: { path: "src/worker.ts" } })
 });

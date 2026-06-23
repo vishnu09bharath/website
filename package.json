@@ -12,7 +12,8 @@
   },
   "dependencies": {
     "@astrojs/cloudflare": "12",
-    "astro": "^5.7.0"
+    "astro": "^5.7.0",
+    "fast-xml-parser": "5.9.3"
   },
   "devDependencies": {
     "wrangler": "^4.100.0"
