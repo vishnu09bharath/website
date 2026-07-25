@@ -1416,8 +1416,15 @@ const fmtLon = (lon: number) =>
         const data: any[] = await res.json();
         return data.map((r) => {
           const display: string = r.display_name;
+          // "City, Country" — first and last segments of the display name
+          // (the middle is district/state noise like "Taipei, Datong
+          // District, Taipei, Taiwan").
+          const parts = display.split(",").map((p: string) => p.trim());
           return {
-            label: display.split(",")[0].trim(),
+            label:
+              parts.length > 1
+                ? `${parts[0]}, ${parts[parts.length - 1]}`
+                : parts[0],
             display,
             lat: parseFloat(r.lat),
             lon: parseFloat(r.lon),
@@ -1462,6 +1469,22 @@ const fmtLon = (lon: number) =>
         // user edits past this without picking a new suggestion, the combobox
         // shows an "is-stale" dot — coords no longer reflect the typed label.
         let lockedLabel = input.value.trim();
+
+        // If the stored coordinates match a preset city but the stored label
+        // doesn't, this row was saved as a typed label over stale coordinates
+        // (possible before the save-time resolver below existed). Treat it as
+        // stale so the next save re-resolves the label to real coordinates.
+        {
+          const lat = parseFloat(latEl.value);
+          const lon = parseFloat(lonEl.value);
+          const near = cities.find(
+            (c) => Math.abs(c.lat - lat) < 0.01 && Math.abs(c.lon - lon) < 0.01,
+          );
+          if (near && near.label.toLowerCase() !== lockedLabel.toLowerCase()) {
+            lockedLabel = "";
+            setState("stale");
+          }
+        }
 
         function setState(state: "" | "stale" | "fresh" | "loading") {
           root.classList.remove("is-stale", "is-fresh", "is-loading");
@@ -1570,10 +1593,71 @@ const fmtLon = (lon: number) =>
         input.addEventListener("keydown", (e) => {
           if (e.key === "Escape") list.hidden = true;
         });
+
+        // Save-time safety net: if the label was typed (or edited) without
+        // picking a suggestion, the hidden lat/lon/tz fields still hold the
+        // previous place. Resolve the typed text to real coordinates — presets
+        // first, then Nominatim — so a save can never pair a new label with
+        // stale coordinates.
+        async function resolve(): Promise<boolean> {
+          const q = input.value.trim();
+          if (q === lockedLabel) return true;
+          if (!q) return false;
+          setState("loading");
+          const presets = presetMatches(q);
+          let s: Suggestion | null =
+            presets.find((p) => p.label.toLowerCase() === q.toLowerCase()) ??
+            presets[0] ??
+            null;
+          if (!s) {
+            try {
+              ctl?.abort();
+              ctl = new AbortController();
+              s = (await nominatim(q, ctl.signal))[0] ?? null;
+            } catch {
+              s = null;
+            }
+          }
+          if (!s) {
+            setState("stale");
+            render([], "empty");
+            input.focus();
+            return false;
+          }
+          // Keep the label exactly as typed — resolution fixes the
+          // coordinates/timezone, it shouldn't rewrite the user's preferred
+          // name for the place ("Taipei, Taiwan" → "Taipei"). Presets keep
+          // their canonical label so a fragment like "hangz" still saves as
+          // "Hangzhou, China".
+          await pick(s.source === "preset" ? s : { ...s, label: q });
+          return true;
+        }
+
+        return {
+          isStale: () => input.value.trim() !== lockedLabel,
+          resolve,
+        };
       }
 
-      setupCombo("home", true);
-      setupCombo("dest", true);
+      const combos = [setupCombo("home", true), setupCombo("dest", true)];
+
+      // Resolve any stale combobox before the form posts, then submit for real.
+      const siteForm = document.querySelector<HTMLFormElement>(".site-form");
+      let resolvingCombos = false;
+      siteForm?.addEventListener("submit", (e) => {
+        const stale = combos.filter((c) => c && c.isStale());
+        if (!stale.length) return;
+        e.preventDefault();
+        if (resolvingCombos) return;
+        resolvingCombos = true;
+        Promise.all(stale.map((c) => c!.resolve()))
+          .then((ok) => {
+            if (ok.every(Boolean)) siteForm.submit();
+          })
+          .finally(() => {
+            resolvingCombos = false;
+          });
+      });
 
       // ---------- Preview / summary updates ----------
       function updateAfterPick() {

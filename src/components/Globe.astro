@@ -88,7 +88,7 @@ const config = {
         <dd>
           {destination.label}
           <span class="globe-next-eta"
-            >in <span class="globe-countdown" aria-live="off"
+            >arriving <span class="globe-countdown" aria-live="off"
               >--:--:--:--</span
             ></span
           >
@@ -535,10 +535,12 @@ const config = {
       ctx.strokeStyle = `rgb(${BLUE})`;
       ctx.beginPath();
       let pen = false;
+      const linePts: { sx: number; sy: number }[] = [];
       for (let i = startI; i <= N; i++) {
         const q = arcPoint(i / N);
         const p = project(q.lon, q.lat, lam);
         if (p.z >= 0) {
+          linePts.push({ sx: p.sx, sy: p.sy });
           if (!pen) {
             ctx.moveTo(p.sx, p.sy);
             pen = true;
@@ -570,8 +572,36 @@ const config = {
         const w = ctx.measureText(big).width + 16 * dpr;
         const h = 22 * dpr;
         const s = cx * 2; // canvas pixel size (square)
-        const bx = Math.max(w / 2 + dpr, Math.min(s - w / 2 - dpr, mp.sx));
-        const by = Math.max(h / 2 + dpr, Math.min(s - h / 2 - dpr, mp.sy));
+        // On a short hop the box centered on the midpoint would swallow the
+        // whole path, dots included — measured in screen space so foreshortened
+        // long routes count too. Perch it above the northernmost endpoint,
+        // clear of the dot's pulse ring.
+        const hp = project(HOME.lon, HOME.lat, lam);
+        const span = Math.hypot(hp.sx - d.sx, hp.sy - d.sy);
+        const short = span < w * 1.35;
+        let ax = mp.sx;
+        let ay = mp.sy;
+        if (short) {
+          const north = HOME.lat >= DEST.lat ? hp : d;
+          // Clear the solid dot plus a small breath — the faint pulse ring may
+          // pass underneath, keeping the box snug to its endpoint.
+          const dotR = Math.max(3.5, R * 0.034);
+          ax = north.sx;
+          ay = north.sy - h / 2 - dotR - 7 * dpr;
+        }
+        const bx = Math.max(w / 2 + dpr, Math.min(s - w / 2 - dpr, ax));
+        if (short) {
+          // The projection can tilt the path so it still crosses the box's
+          // column — lift the box above every visible line point that
+          // horizontally overlaps it, so the two can never intersect.
+          const pad = 6 * dpr;
+          for (const pt of linePts) {
+            if (Math.abs(pt.sx - bx) < w / 2 + pad) {
+              ay = Math.min(ay, pt.sy - h / 2 - pad);
+            }
+          }
+        }
+        const by = Math.max(h / 2 + dpr, Math.min(s - h / 2 - dpr, ay));
         ctx.fillStyle = `rgb(${BLUE})`;
         ctx.beginPath();
         ctx.roundRect(bx - w / 2, by - h / 2, w, h, 6 * dpr);
