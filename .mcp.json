@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "picker": {
+      "type": "stdio",
+      "command": "node",
+      "args": [
+        "claude-element-picker/src/server.mjs"
+      ],
+      "env": {}
+    }
+  }
+}
