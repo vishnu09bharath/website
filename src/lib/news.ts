@@ -494,23 +494,12 @@ export async function buildFeed(env: NewsEnv): Promise<FeedCache> {
   return { builtAt, articles: ranked };
 }
 
-/** Return the cached feed, rebuilding if missing or older than maxAgeMs. */
-export async function getFeed(
-  env: NewsEnv,
-  { maxAgeMs = 30 * 60_000 }: { maxAgeMs?: number } = {},
-): Promise<FeedCache> {
-  const cached = await readJSON(env, K_FEED, feedSchema, {
+/** Read only: page rendering must never wait for RSS downloads or AI ranking. */
+export async function getFeed(env: NewsEnv): Promise<FeedCache> {
+  return readJSON(env, K_FEED, feedSchema, {
     builtAt: 0,
     articles: [],
   });
-  if (cached.articles.length && Date.now() - cached.builtAt < maxAgeMs) {
-    return cached;
-  }
-  try {
-    return await buildFeed(env);
-  } catch {
-    return cached; // serve stale rather than 500
-  }
 }
 
 /**

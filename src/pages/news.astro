@@ -19,16 +19,22 @@ if (!login) return Astro.redirect("/login");
 const view = Astro.url.searchParams.get("view") === "saved" ? "saved" : "feed";
 
 // Read the prior visit BEFORE touching it, so catch-up reflects what's new since.
-const state = await getState(env);
-const feed = await getFeed(env); // rebuilds if older than 30 min
-const saved = await getSaved(env);
+const [state, feed, saved] = await Promise.all([
+  view === "feed" ? getState(env) : Promise.resolve(null),
+  view === "feed" ? getFeed(env) : Promise.resolve({ builtAt: 0, articles: [] }),
+  getSaved(env),
+]);
+const needsRefresh = view === "feed" && Date.now() - feed.builtAt >= 30 * 60_000;
 const savedIds = new Set(saved.map((a) => a.id));
 
-const catchUp = view === "feed" ? await getCatchUp(env, feed.articles, state) : [];
+const catchUp = state ? await getCatchUp(env, feed.articles, state) : [];
 const articles: Article[] = view === "saved" ? saved : feed.articles;
 
 // Record this visit (after computing catch-up).
-await touchVisit(env);
+const visit = touchVisit(env).catch(() => {});
+const ctx = (Astro.locals as any).runtime?.ctx;
+if (ctx) ctx.waitUntil(visit);
+else await visit;
 
 const builtAgo = feed.builtAt
   ? Math.max(0, Math.round((Date.now() - feed.builtAt) / 60_000))
@@ -52,7 +58,7 @@ function timeAgo(ms: number): string {
     <meta name="robots" content="noindex" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   </head>
-  <body class="news-body">
+  <body class="news-body" data-needs-refresh={needsRefresh}>
     <header class="news-top">
       <div class="news-title">
         <h1>News</h1>
@@ -70,6 +76,7 @@ function timeAgo(ms: number): string {
         <button id="refresh" type="button" title="Rebuild the feed">↻</button>
       </nav>
     </header>
+    <p id="refresh-status" class="news-sub" role="status" hidden></p>
 
     <main>
       {
@@ -144,17 +151,54 @@ function timeAgo(ms: number): string {
     </footer>
 
     <script>
-      // Refresh: rebuild the feed server-side, then reload to show it.
-      const refresh = document.getElementById("refresh");
-      refresh?.addEventListener("click", async () => {
-        refresh.setAttribute("disabled", "true");
+      // Show the cached page first; refresh in a separate request afterward.
+      const refresh = document.querySelector<HTMLButtonElement>("#refresh");
+      const status = document.getElementById("refresh-status");
+      const attemptKey = "news:last-auto-refresh";
+      function setStatus(message: string) {
+        if (!status) return;
+        status.hidden = false;
+        status.textContent = message;
+      }
+      async function refreshFeed() {
+        if (!refresh || refresh.disabled) return;
+        refresh.disabled = true;
         refresh.textContent = "…";
+        setStatus("Updating stories…");
         try {
-          await fetch("/api/news/refresh", { method: "POST" });
-        } finally {
+          const res = await fetch("/api/news/refresh", {
+            method: "POST",
+            signal: AbortSignal.timeout(45_000),
+          });
+          if (!res.ok) throw new Error("Refresh failed");
+          const feed = await res.json();
+          if (!feed.articles?.length) {
+            setStatus("No stories available yet. Try refreshing again shortly.");
+            return;
+          }
           location.reload();
+        } catch {
+          setStatus("Couldn’t update stories. Tap ↻ to try again.");
+        } finally {
+          refresh.disabled = false;
+          refresh.textContent = "↻";
         }
-      });
+      }
+      refresh?.addEventListener("click", refreshFeed);
+
+      if (document.body.dataset.needsRefresh === "true") {
+        // KV updates can take time to propagate. Bound automatic retries so a
+        // reload seeing an older value cannot cause a refresh/reload loop.
+        try {
+          const lastAttempt = Number(sessionStorage.getItem(attemptKey)) || 0;
+          if (Date.now() - lastAttempt > 60_000) {
+            sessionStorage.setItem(attemptKey, String(Date.now()));
+            void refreshFeed();
+          }
+        } catch {
+          // With storage disabled, keep the manual refresh available.
+        }
+      }
 
       // Save / unsave toggle.
       document.querySelectorAll<HTMLButtonElement>(".pane-save").forEach((btn) => {
