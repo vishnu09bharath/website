@@ -4,6 +4,7 @@ export const prerender = false;
 import "../../styles/global.css";
 import { getSite } from "../../data/site";
 import { getAdmin } from "../../lib/auth";
+import { getTaskOverview, STALE_RUN } from "../../lib/tasks";
 import { CITIES } from "../../data/cities";
 
 const env = (Astro.locals as any).runtime?.env;
@@ -20,7 +21,60 @@ const isDev = import.meta.env.DEV;
 // We can't read the URL hash on the server, but the query param is a perfect
 // hint — render the Site content tab active so there's no Overview→Site flicker
 // before client JS picks up the hash.
-const initialTab = saved || error ? "site" : "overview";
+// Task actions come back with ?task=ok|err&msg=...#tasks the same way.
+const taskFlash = Astro.url.searchParams.get("task");
+const taskMsg = Astro.url.searchParams.get("msg");
+const initialTab = taskFlash ? "tasks" : saved || error ? "site" : "overview";
+
+// ---------- Tasks tab ----------
+const taskOverview = await getTaskOverview(env);
+const now = Date.now();
+function fmtTime(ms: number): string {
+  const opts: Intl.DateTimeFormatOptions = {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  };
+  try {
+    return new Date(ms).toLocaleString("en-US", { ...opts, timeZone: site.travel.home.timezone });
+  } catch {
+    return new Date(ms).toLocaleString("en-US", opts);
+  }
+}
+function ago(ms: number): string {
+  const m = Math.round((now - ms) / 60_000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  if (m < 48 * 60) return `${Math.round(m / 60)}h ago`;
+  return `${Math.round(m / 1440)}d ago`;
+}
+const duration = (ms: number) => (ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`);
+// Cron ticks every 15 min; three missed ticks means the scheduler isn't firing.
+const schedulerStale = !isDev && now - taskOverview.heartbeatAt > 45 * 60_000;
+const taskRows = taskOverview.tasks.map(({ task, state, nextRunAt }) => {
+  const last = state.history[0];
+  const running = state.startedAt > 0 && now - state.startedAt < STALE_RUN;
+  const status = state.paused
+    ? { key: "paused", label: "Paused" }
+    : running
+      ? { key: "running", label: "Running" }
+      : state.completedAt
+        ? { key: "done", label: "Done" }
+        : last && !last.ok
+          ? { key: "failed", label: "Failed" }
+          : last
+            ? { key: "ok", label: "OK" }
+            : { key: "waiting", label: "Waiting" };
+  const schedule =
+    "every" in task.schedule
+      ? `every ${task.schedule.every} min`
+      : `once · ${fmtTime(Date.parse(task.schedule.once))}`;
+  const next =
+    nextRunAt === null ? null : nextRunAt <= now ? "next tick" : fmtTime(nextRunAt);
+  return { task, state, last, status, schedule, next };
+});
 
 // Curated palettes for the announcement banner — one-click alternatives to the
 // raw color pickers. First is the current default.
@@ -97,8 +151,14 @@ const fmtLon = (lon: number) =>
       >
         Site content
       </a>
+      <a
+        class:list={["tab", { "is-active": initialTab === "tasks" }]}
+        data-tab="tasks"
+        href="#tasks"
+      >
+        Tasks
+      </a>
       <a class="tab" href="/news">News</a>
-      <span class="tab is-soon" aria-disabled="true">Activity</span>
     </nav>
 
     <main>
@@ -502,6 +562,89 @@ const fmtLon = (lon: number) =>
             </div>
           </form>
         </section>
+
+        <section class="dash-pane" data-pane="tasks" hidden={initialTab !== "tasks"}>
+          <header class="pane-head">
+            <h2>Tasks</h2>
+            <p class="pane-sub">
+              Scheduled jobs from <code>src/tasks/</code>, run by the Worker cron every 15 min.
+              {
+                taskOverview.heartbeatAt
+                  ? ` Scheduler last ran ${ago(taskOverview.heartbeatAt)}.`
+                  : " The scheduler hasn't run yet."
+              }
+            </p>
+          </header>
+
+          {
+            taskFlash && (
+              <p class:list={["dash-toast", taskFlash === "ok" ? "ok" : "err"]}>{taskMsg}</p>
+            )
+          }
+          {
+            schedulerStale && (
+              <p class="dash-toast err">
+                The cron hasn't fired in over 45 minutes, so nothing runs on schedule.
+                Check the Worker's cron trigger in the Cloudflare dashboard (see ADMIN.md).
+              </p>
+            )
+          }
+
+          <ul class="task-list">
+            {
+              taskRows.map(({ task, state, last, status, schedule, next }) => (
+                <li class="task">
+                  <div class="task-head">
+                    <span class="task-state" data-state={status.key}>{status.label}</span>
+                    <h3>{task.title}</h3>
+                    <span class="status-text">{schedule}</span>
+                  </div>
+                  <p class="task-desc">{task.description}</p>
+                  <p class="task-meta">
+                    {last ? `Last run ${ago(last.at)} · ${duration(last.ms)} · ${last.message}` : "Never run"}
+                    {next && (
+                      <>
+                        <span class="status-sep" aria-hidden="true">·</span>
+                        Next: {next}
+                      </>
+                    )}
+                  </p>
+                  {state.history.length > 0 && (
+                    <details class="task-history">
+                      <summary>History</summary>
+                      <ol>
+                        {state.history.map((r) => (
+                          <li data-ok={String(r.ok)}>
+                            <time>{fmtTime(r.at)}</time>
+                            <span class="run-result">
+                              {r.ok ? "ok" : "failed"} · {r.trigger} · {duration(r.ms)}
+                            </span>
+                            <span class="status-text">{r.message}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    </details>
+                  )}
+                  <form class="task-actions" method="POST" action="/api/admin/tasks">
+                    <input type="hidden" name="id" value={task.id} />
+                    <button type="submit" name="action" value="run" disabled={kvMissing}>
+                      Run now
+                    </button>
+                    <button
+                      type="submit"
+                      name="action"
+                      value={state.paused ? "resume" : "pause"}
+                      class="secondary"
+                      disabled={kvMissing}
+                    >
+                      {state.paused ? "Resume" : "Pause"}
+                    </button>
+                  </form>
+                </li>
+              ))
+            }
+          </ul>
+        </section>
       </main>
 
     <script
@@ -699,6 +842,105 @@ const fmtLon = (lon: number) =>
       }
       .status-actions a:hover {
         color: var(--fg);
+      }
+
+      /* ---------- Tasks ---------- */
+      .pane-sub code {
+        font-size: 0.85em;
+      }
+      .task-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+      }
+      .task {
+        padding: 1rem 1.2rem;
+        border-bottom: 1px solid var(--rule);
+      }
+      .task:last-child {
+        border-bottom: 0;
+      }
+      .task-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 0.35rem 0.75rem;
+      }
+      .task-head h3 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: normal;
+        text-align: left;
+        text-transform: none;
+        color: var(--fg);
+      }
+      .task-state {
+        min-width: 4.5rem;
+        color: var(--muted);
+        font-size: 0.7rem;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .task-state[data-state="ok"],
+      .task-state[data-state="done"] {
+        color: #01ed7e;
+      }
+      .task-state[data-state="failed"] {
+        color: #ff6b66;
+      }
+      .task-state[data-state="running"] {
+        color: var(--fg);
+      }
+      .task-desc,
+      .task-meta {
+        margin: 0.35rem 0 0;
+        font-size: 0.85rem;
+        color: var(--muted);
+      }
+      .task-meta {
+        color: var(--fg);
+        overflow-wrap: anywhere;
+      }
+      .task-history {
+        margin-top: 0.5rem;
+        font-size: 0.8rem;
+        color: var(--muted);
+      }
+      .task-history summary {
+        cursor: pointer;
+      }
+      .task-history ol {
+        display: grid;
+        gap: 0.25rem;
+        margin: 0.4rem 0 0;
+        padding: 0;
+        list-style: none;
+      }
+      .task-history li {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0 0.6rem;
+      }
+      .task-history li[data-ok="false"] .run-result {
+        color: #ff6b66;
+      }
+      .task-actions {
+        display: flex;
+        gap: 0.6rem;
+        margin-top: 0.75rem;
+      }
+      .task-actions button[type="submit"] {
+        padding: 0.4rem 0.9rem;
+        font-size: 0.8rem;
+      }
+      .task-actions button.secondary {
+        background: transparent;
+        color: var(--fg);
+        border: 1px solid var(--rule);
       }
 
       /* ---------- Toasts ---------- */
@@ -1274,6 +1516,16 @@ const fmtLon = (lon: number) =>
       window.addEventListener("hashchange", () => {
         const key = location.hash.slice(1);
         if ([...tabs].some((t) => t.dataset.tab === key)) showTab(key);
+      });
+
+      // ---------- Tasks: show progress while a run is in flight ----------
+      document.querySelectorAll<HTMLFormElement>(".task-actions").forEach((form) => {
+        form.addEventListener("submit", (e) => {
+          const btn = (e as SubmitEvent).submitter as HTMLButtonElement | null;
+          if (btn?.value === "run") btn.textContent = "Running…";
+          // Defer so the submitter's name/value still makes it into the POST.
+          setTimeout(() => form.querySelectorAll("button").forEach((b) => (b.disabled = true)));
+        });
       });
 
       // ---------- Banner: text + link live preview ----------
