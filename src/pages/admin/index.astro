@@ -234,12 +234,9 @@ const fmtLon = (lon: number) =>
           <p class="pane-sub">Health, traffic, and repo activity.</p>
         </header>
 
-        {
-          taskFlash && flashTab === "overview" && (
-            <p class:list={["dash-toast", taskFlash === "ok" ? "ok" : "err"]}>{taskMsg}</p>
-          )
-        }
-
+        <div class="ov-section-head">
+          <h3 class="ov-label">Live</h3>
+        </div>
         <div class="health-grid">
           {
             health.map((h) => (
@@ -256,16 +253,43 @@ const fmtLon = (lon: number) =>
           }
         </div>
 
-        <form class="task-actions ov-refresh" method="POST" action="/api/admin/tasks">
-          <input type="hidden" name="id" value="overview-stats" />
-          <input type="hidden" name="return" value="overview" />
-          <span class="status-text">
-            {statsUpdatedAt ? `Traffic & repo stats updated ${ago(statsUpdatedAt)}` : "Traffic & repo stats haven't been fetched yet"}
-          </span>
-          <button type="submit" name="action" value="run" class="secondary" disabled={kvMissing}>
-            Refresh stats
-          </button>
-        </form>
+        <div class="ov-section-head">
+          <div class="ov-section-title">
+            <h3 class="ov-label">Hourly snapshot</h3>
+            <span class="ov-meta">
+              {
+                statsUpdatedAt ? (
+                  <>
+                    Updated{" "}
+                    <time datetime={new Date(statsUpdatedAt).toISOString()} title={fmtTime(statsUpdatedAt)}>
+                      {ago(statsUpdatedAt)}
+                    </time>
+                  </>
+                ) : (
+                  "Not fetched yet"
+                )
+              }
+            </span>
+          </div>
+          <form class="ov-refresh" method="POST" action="/api/admin/tasks">
+            <input type="hidden" name="id" value="overview-stats" />
+            <input type="hidden" name="return" value="overview" />
+            <button
+              type="submit"
+              name="action"
+              value="run"
+              class="ov-refresh-btn"
+              disabled={kvMissing}
+              title="Fetch traffic and repo stats now"
+            >
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M13.25 8A5.25 5.25 0 1 1 11.7 4.3" />
+                <path d="M13.25 1.75v3.5h-3.5" />
+              </svg>
+              <span>Refresh</span>
+            </button>
+          </form>
+        </div>
 
         <section class="ov-card" aria-label="Traffic">
           <header class="ov-card-head">
@@ -345,7 +369,7 @@ const fmtLon = (lon: number) =>
               <div class="repo-grid">
                 <div>
                   <span class="ov-label">Recent commits</span>
-                  <ol class="ov-list">
+                  <ol class="ov-list ov-list--rows">
                     {gh.commits.map((c) => (
                       <li data-live={String(c.sha === BUILD.sha)}>
                         <a class="sha" href={c.url} target="_blank" rel="noopener">{shortSha(c.sha)}</a>
@@ -358,7 +382,7 @@ const fmtLon = (lon: number) =>
                 <div>
                   <span class="ov-label">Open pull requests</span>
                   {gh.pulls.length ? (
-                    <ol class="ov-list">
+                    <ol class="ov-list ov-list--rows">
                       {gh.pulls.map((p) => (
                         <li>
                           <a class="sha" href={p.url} target="_blank" rel="noopener">#{p.number}</a>
@@ -936,12 +960,108 @@ const fmtLon = (lon: number) =>
         margin: 0 0.2rem;
         color: var(--rule);
       }
-      .ov-refresh {
+      /* Section heads split Live (read on load) from the Hourly snapshot (cached,
+         refreshable) — the Refresh control sits with the data it refreshes. */
+      .ov-section-head {
+        display: flex;
         align-items: center;
-        justify-content: flex-end;
+        justify-content: space-between;
+        gap: 0.5rem 1rem;
+        min-height: 2rem;
+        margin: 2rem 0 0.65rem;
+      }
+      .health-grid ~ .ov-section-head {
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--rule);
+      }
+      .pane-head + .ov-section-head {
+        margin-top: 0;
+      }
+      .ov-section-head .ov-label {
+        margin: 0;
+        line-height: 1.2;
+        text-align: left;
+      }
+      .ov-section-title {
+        display: flex;
         flex-wrap: wrap;
-        margin-top: 1.25rem;
+        align-items: baseline;
+        gap: 0.2rem 0.75rem;
+        min-width: 0;
+      }
+      .ov-meta {
+        color: var(--muted);
         font-size: 0.8rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .ov-section-head + .ov-card {
+        margin-top: 0;
+      }
+      .ov-refresh {
+        flex-shrink: 0;
+        margin: 0;
+      }
+      .ov-section-head button.ov-refresh-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.4rem 0.75rem;
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        line-height: 1;
+        transition:
+          color 150ms ease,
+          border-color 150ms ease,
+          transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .ov-section-head button.ov-refresh-btn:hover:not(:disabled) {
+          color: var(--fg);
+          border-color: var(--muted);
+        }
+      }
+      .ov-section-head button.ov-refresh-btn:active:not(:disabled) {
+        transform: scale(0.97);
+      }
+      .ov-section-head button.ov-refresh-btn:focus-visible {
+        outline: 2px solid var(--fg);
+        outline-offset: 2px;
+      }
+      .ov-section-head button.ov-refresh-btn[aria-busy="true"]:disabled {
+        color: var(--fg);
+        opacity: 1;
+        cursor: progress;
+      }
+      .ov-refresh-btn svg {
+        width: 0.85rem;
+        height: 0.85rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .ov-refresh-btn[aria-busy="true"] svg {
+        animation: ov-spin 750ms linear infinite;
+      }
+      @keyframes ov-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ov-refresh-btn[aria-busy="true"] svg {
+          animation: none;
+        }
+      }
+      .ov-list.ov-list--rows li {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        column-gap: 0.6rem;
       }
       .ov-label {
         display: block;
@@ -1168,6 +1288,36 @@ const fmtLon = (lon: number) =>
         .traffic-lists,
         .repo-grid {
           grid-template-columns: minmax(0, 1fr);
+        }
+        .health-cell {
+          padding: 0.8rem 0.85rem;
+        }
+        .health-detail {
+          display: -webkit-box;
+          white-space: normal;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+        }
+        .traffic-totals {
+          gap: 1.5rem;
+        }
+        .traffic-chart {
+          width: 100%;
+        }
+        .ov-card {
+          padding: 0.9rem 0.95rem;
+        }
+        /* Commit/PR rows: let the message use the full width, time underneath. */
+        .ov-list.ov-list--rows {
+          gap: 0.6rem;
+        }
+        .ov-list.ov-list--rows li {
+          grid-template-columns: auto minmax(0, 1fr);
+          row-gap: 0.1rem;
+        }
+        .ov-list.ov-list--rows li .status-text {
+          grid-column: 2;
+          font-size: 0.75rem;
         }
       }
 
@@ -1853,6 +2003,30 @@ const fmtLon = (lon: number) =>
           // Defer so the submitter's name/value still makes it into the POST.
           setTimeout(() => form.querySelectorAll("button").forEach((b) => (b.disabled = true)));
         });
+      });
+
+      // ---------- Overview: spin the Refresh icon while stats are fetched ----------
+      const refreshForm = document.querySelector<HTMLFormElement>(".ov-refresh");
+      const setRefreshing = (btn: HTMLButtonElement, busy: boolean) => {
+        btn.toggleAttribute("aria-busy", busy);
+        if (busy) btn.setAttribute("aria-busy", "true");
+        const label = btn.querySelector("span");
+        if (label) label.textContent = busy ? "Refreshing…" : "Refresh";
+      };
+      refreshForm?.addEventListener("submit", (e) => {
+        const btn = (e as SubmitEvent).submitter as HTMLButtonElement | null;
+        if (!btn) return;
+        setRefreshing(btn, true);
+        // Defer so the submitter's name/value still makes it into the POST.
+        setTimeout(() => (btn.disabled = true));
+      });
+      // Coming back via the back/forward cache would otherwise leave it spinning.
+      window.addEventListener("pageshow", (e) => {
+        const btn = refreshForm?.querySelector<HTMLButtonElement>("button");
+        if (e.persisted && btn) {
+          setRefreshing(btn, false);
+          btn.disabled = false;
+        }
       });
 
       // ---------- Banner: text + link live preview ----------
