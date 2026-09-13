@@ -13,6 +13,9 @@ export type TaskEnv =
       ALLOWED_EMAIL?: string;
       CF_ACCOUNT_ID?: string;
       CF_AI_TOKEN?: string;
+      CF_ANALYTICS_TOKEN?: string;
+      CF_WEB_ANALYTICS_SITE_TAG?: string;
+      GITHUB_TOKEN?: string;
     }
   | undefined;
 
