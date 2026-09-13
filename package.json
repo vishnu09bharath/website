@@ -3,12 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.30.3",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
     "test": "node --test tests/*.test.mjs",
-    "preview": "npm run build && wrangler dev",
-    "deploy": "npm run build && wrangler deploy",
+    "preview": "pnpm run build && wrangler dev",
+    "deploy": "pnpm run build && wrangler deploy",
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
@@ -17,6 +18,15 @@
     "fast-xml-parser": "5.9.3"
   },
   "devDependencies": {
-    "wrangler": "^4.100.0"
+    "esbuild": "0.27.7",
+    "wrangler": "^4.100.0",
+    "zod": "3.25.76"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp",
+      "workerd"
+    ]
   }
 }

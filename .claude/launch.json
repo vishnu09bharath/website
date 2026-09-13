@@ -3,14 +3,14 @@
   "configurations": [
     {
       "name": "dev",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "--port", "4399"],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev", "--port", "4399"],
       "port": 4399
     },
     {
       "name": "worker-cron",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["wrangler", "dev", "--test-scheduled", "--port", "4398"],
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["exec", "wrangler", "dev", "--test-scheduled", "--port", "4398"],
       "port": 4398
     }
   ]

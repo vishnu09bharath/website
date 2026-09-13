@@ -1,21 +1,25 @@
 # vishnubharath.com
 
-Personal portfolio. Static site built with [Astro](https://astro.build) (Vite under the hood), deployed on Cloudflare Pages.
+Personal portfolio. [Astro](https://astro.build) site with a small KV-backed admin,
+deployed as a Cloudflare Worker. Uses [pnpm](https://pnpm.io) (version pinned in
+`package.json` → `packageManager`).
 
 ## Develop
 
 ```sh
-npm install
-npm run dev      # http://localhost:4321
-npm run build    # outputs to dist/
-npm run preview  # serve the production build locally
+pnpm install
+pnpm dev         # http://localhost:4321
+pnpm test        # unit tests
+pnpm build       # outputs to dist/
+pnpm preview     # run the built Worker locally with wrangler
 ```
 
-## Deploy (Cloudflare Pages)
+## Deploy (Cloudflare Workers Builds)
 
-Connect the repo in the Cloudflare dashboard with:
+The `website` Worker is connected to this repo; every push to `main` deploys.
 
-- **Build command:** `npm run build`
-- **Build output directory:** `dist`
+- **Build command:** `pnpm run build`
+- **Deploy command:** `pnpm exec wrangler deploy`
 
-No environment variables, adapters, or wrangler config required — the site is fully static.
+Bindings, cron, and vars live in `wrangler.jsonc`; secrets and admin setup are
+in [ADMIN.md](ADMIN.md).
