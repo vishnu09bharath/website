@@ -82,8 +82,10 @@ Local cron test: `npm run build && npx wrangler dev --test-scheduled`, then
     1. Cloudflare → **Web Analytics → Add a site → `vishnubharath.com`**.
     2. Create an API token with **Account → Account Analytics → Read** and add
        it as the `CF_ANALYTICS_TOKEN` secret (uses `CF_ACCOUNT_ID` too).
-    3. Put the site tag shown for the site into `vars.CF_WEB_ANALYTICS_SITE_TAG`
-       in `wrangler.jsonc`.
+    3. Put the site tag into `vars.CF_WEB_ANALYTICS_SITE_TAG` in `wrangler.jsonc`.
+       It's the `siteTag~in=` value in the URL when you open the site's Web
+       Analytics dashboard — not the `token` in the JS beacon snippet, which is a
+       different id and returns no data.
 
 ## Production setup (one time)
 
