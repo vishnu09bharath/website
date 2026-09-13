@@ -66,6 +66,25 @@ Behaviour worth knowing:
 Local cron test: `npm run build && npx wrangler dev --test-scheduled`, then
 `curl "http://localhost:8787/__scheduled?cron=*/15+*+*+*+*"`.
 
+## Overview tab
+
+- **Health** (live): the deployed commit (baked in at build time from
+  `WORKERS_CI_COMMIT_SHA`) and whether `main` is ahead of it, when the cron last
+  ticked, failing tasks, and news feed freshness.
+- **Traffic** and **Repo** come from the hourly `overview-stats` task, cached in
+  KV (`overview:stats`); **Refresh stats** runs it on the spot. If a source fails,
+  the card keeps its last good data and shows the error.
+  - Repo: recent commits, open PRs, and the last résumé sync, from the public
+    GitHub API. Cloudflare's shared egress IPs can hit GitHub's anonymous rate
+    limit — if that happens, add a `GITHUB_TOKEN` secret (fine-grained, public
+    repos read-only).
+  - Traffic: Cloudflare **Web Analytics** (free, cookieless). To enable:
+    1. Cloudflare → **Web Analytics → Add a site → `vishnubharath.com`**.
+    2. Create an API token with **Account → Account Analytics → Read** and add
+       it as the `CF_ANALYTICS_TOKEN` secret (uses `CF_ACCOUNT_ID` too).
+    3. Put the site tag shown for the site into `vars.CF_WEB_ANALYTICS_SITE_TAG`
+       in `wrangler.jsonc`.
+
 ## Production setup (one time)
 
 These need your accounts (I can't do them for you).
@@ -104,6 +123,8 @@ the next `wrangler deploy`; secrets persist):
 | `CF_ACCOUNT_ID` | Cloudflare account id (news ranking) |
 | `CF_AI_TOKEN` | Workers AI API token (news ranking) |
 | `RESEND_API_KEY` | Resend key, **Sending access** limited to `vishnubharath.com` |
+| `CF_ANALYTICS_TOKEN` | API token with **Account Analytics: Read** (Overview traffic) |
+| `GITHUB_TOKEN` | optional — only if the Overview hits GitHub rate limits |
 
 Now `https://vishnubharath.com/admin` redirects to Google sign-in, and only the
 verified `ALLOWED_EMAIL` account is allowed in. The client only requests

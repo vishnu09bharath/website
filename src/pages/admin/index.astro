@@ -5,7 +5,11 @@ import "../../styles/global.css";
 import { getSite } from "../../data/site";
 import { getAdmin } from "../../lib/auth";
 import { getTaskOverview, STALE_RUN } from "../../lib/tasks";
+import { getFeed } from "../../lib/news";
+import { BUILD } from "../../lib/build-info";
+import { REPO, getOverviewStats } from "../../lib/overview";
 import { CITIES } from "../../data/cities";
+import resume from "../../data/resume.json";
 
 const env = (Astro.locals as any).runtime?.env;
 const login = await getAdmin(Astro.cookies, env);
@@ -21,10 +25,11 @@ const isDev = import.meta.env.DEV;
 // We can't read the URL hash on the server, but the query param is a perfect
 // hint — render the Site content tab active so there's no Overview→Site flicker
 // before client JS picks up the hash.
-// Task actions come back with ?task=ok|err&msg=...#tasks the same way.
+// Task actions come back with ?task=ok|err&tab=tasks|overview&msg=... the same way.
 const taskFlash = Astro.url.searchParams.get("task");
 const taskMsg = Astro.url.searchParams.get("msg");
-const initialTab = taskFlash ? "tasks" : saved || error ? "site" : "overview";
+const flashTab = Astro.url.searchParams.get("tab") === "overview" ? "overview" : "tasks";
+const initialTab = taskFlash ? flashTab : saved || error ? "site" : "overview";
 
 // ---------- Tasks tab ----------
 const taskOverview = await getTaskOverview(env);
@@ -76,6 +81,72 @@ const taskRows = taskOverview.tasks.map(({ task, state, nextRunAt }) => {
   return { task, state, last, status, schedule, next };
 });
 
+// ---------- Overview tab ----------
+// Repo + traffic come from the hourly overview-stats task's KV cache; health is
+// read live from task state and the news feed.
+const [stats, feed] = await Promise.all([getOverviewStats(env), getFeed(env)]);
+const gh = stats.github.data;
+const traffic = stats.traffic.data;
+const statsUpdatedAt = Math.max(stats.github.fetchedAt, stats.traffic.fetchedAt);
+const shortSha = (sha: string) => sha.slice(0, 7);
+const fmtNum = (n: number) => n.toLocaleString("en-US");
+const cfDash = env?.CF_ACCOUNT_ID
+  ? `https://dash.cloudflare.com/${env.CF_ACCOUNT_ID}`
+  : "https://dash.cloudflare.com";
+const [resumeY, resumeM, resumeD] = resume.date.split("-");
+const resumeLabel = `${resumeM}.${resumeD}.${resumeY.slice(2)}`;
+
+const failingTasks = taskRows.filter((r) => r.status.key === "failed");
+const behind = gh?.liveBehindBy ?? 0;
+const health = [
+  {
+    label: "Live version",
+    value: BUILD.sha ? shortSha(BUILD.sha) : "unknown",
+    href: BUILD.sha ? `https://github.com/${REPO}/commit/${BUILD.sha}` : undefined,
+    detail: behind
+      ? `main is ${behind} commit${behind === 1 ? "" : "s"} ahead`
+      : BUILD.builtAt
+        ? `built ${ago(BUILD.builtAt)}`
+        : "",
+    tone: behind ? "warn" : BUILD.sha ? "ok" : "muted",
+  },
+  {
+    label: "Scheduler",
+    value: taskOverview.heartbeatAt ? ago(taskOverview.heartbeatAt) : "never run",
+    detail: "cron every 15 min",
+    tone: schedulerStale ? "bad" : taskOverview.heartbeatAt ? "ok" : "muted",
+  },
+  {
+    label: "Tasks",
+    value: failingTasks.length ? `${failingTasks.length} failing` : "All OK",
+    href: "#tasks",
+    detail: failingTasks.length
+      ? failingTasks.map((r) => r.task.title).join(", ")
+      : `${taskRows.length} tasks`,
+    tone: failingTasks.length ? "bad" : "ok",
+  },
+  {
+    label: "News feed",
+    value: feed.builtAt ? ago(feed.builtAt) : "never built",
+    href: "/news",
+    detail: `${feed.articles.length} stories`,
+    tone: !feed.builtAt || now - feed.builtAt > 2 * 3_600_000 ? "warn" : "ok",
+  },
+];
+
+const maxViews = Math.max(1, ...(traffic?.days ?? []).map((d) => d.views));
+const weekday = (date: string) =>
+  new Date(`${date}T12:00:00Z`).toLocaleDateString("en-US", { weekday: "narrow", timeZone: "UTC" });
+const trafficLists = traffic
+  ? [
+      { title: "Top pages", rows: traffic.pages },
+      { title: "Referrers", rows: traffic.referrers },
+      { title: "Countries", rows: traffic.countries },
+    ]
+  : [];
+const external = (href?: string) =>
+  href?.startsWith("http") ? { target: "_blank", rel: "noopener" } : {};
+
 // Curated palettes for the announcement banner — one-click alternatives to the
 // raw color pickers. First is the current default.
 const BANNER_PRESETS = [
@@ -89,11 +160,6 @@ const BANNER_PRESETS = [
 ];
 
 const arrivalDate = new Date(site.travel.arrival + "T00:00:00");
-const daysToArrival = Math.max(
-  0,
-  Math.ceil((arrivalDate.getTime() - Date.now()) / 86400000),
-);
-
 const humanArrival = arrivalDate.toLocaleDateString("en-US", {
   weekday: "short",
   month: "short",
@@ -165,73 +231,196 @@ const fmtLon = (lon: number) =>
       <section class="dash-pane" data-pane="overview" hidden={initialTab !== "overview"}>
         <header class="pane-head">
           <h2>Overview</h2>
-          <p class="pane-sub">What's live on the site right now.</p>
+          <p class="pane-sub">Health, traffic, and repo activity.</p>
         </header>
 
-          <article class="status-panel">
-            <dl class="status-list">
-              <div class="status-row">
-                <dt>Banner</dt>
-                <dd>
-                  <span class="status-state" data-on={String(site.banner.enabled)}>
-                    {site.banner.enabled ? "On" : "Off"}
-                  </span>
-                  {
-                    site.banner.enabled && (
-                      <>
-                        <span class="status-sep" aria-hidden="true">·</span>
-                        <span class="status-text">"{site.banner.text}"</span>
-                      </>
-                    )
-                  }
-                </dd>
-                <span
-                  class="status-swatch"
-                  aria-hidden="true"
-                  style={`background:${site.banner.bg};color:${site.banner.fg}`}
-                >Aa</span>
+        <div class="ov-section-head">
+          <h3 class="ov-label">Live</h3>
+        </div>
+        <div class="health-grid">
+          {
+            health.map((h) => (
+              <div class="health-cell" data-tone={h.tone}>
+                <span class="ov-label">{h.label}</span>
+                {h.href ? (
+                  <a class="health-value" href={h.href} {...external(h.href)}>{h.value}</a>
+                ) : (
+                  <span class="health-value">{h.value}</span>
+                )}
+                <span class="health-detail" title={h.detail}>{h.detail}</span>
               </div>
+            ))
+          }
+        </div>
 
-              <div class="status-row">
-                <dt>Location</dt>
-                <dd>
-                  {site.travel.home.label}
-                  <span class="status-sep" aria-hidden="true">·</span>
-                  <span class="status-text">{site.travel.home.timezone}</span>
-                </dd>
-              </div>
-
-              <div class="status-row">
-                <dt>Next</dt>
-                <dd>
-                  {site.travel.destination.label}
-                  <span class="status-sep" aria-hidden="true">·</span>
-                  <span class="status-text">
-                    {daysToArrival === 0
-                      ? "arriving today"
-                      : `in ${daysToArrival} ${daysToArrival === 1 ? "day" : "days"}`}
-                    · {site.travel.arrival}
-                  </span>
-                </dd>
-              </div>
-
+        <div class="ov-section-head">
+          <div class="ov-section-title">
+            <h3 class="ov-label">Hourly snapshot</h3>
+            <span class="ov-meta">
               {
-                site.travel.flight && (
-                  <div class="status-row">
-                    <dt>Flight</dt>
-                    <dd>{site.travel.flight}</dd>
-                  </div>
+                statsUpdatedAt ? (
+                  <>
+                    Updated{" "}
+                    <time datetime={new Date(statsUpdatedAt).toISOString()} title={fmtTime(statsUpdatedAt)}>
+                      {ago(statsUpdatedAt)}
+                    </time>
+                  </>
+                ) : (
+                  "Not fetched yet"
                 )
               }
-            </dl>
-          </article>
+            </span>
+          </div>
+          <form class="ov-refresh" method="POST" action="/api/admin/tasks">
+            <input type="hidden" name="id" value="overview-stats" />
+            <input type="hidden" name="return" value="overview" />
+            <button
+              type="submit"
+              name="action"
+              value="run"
+              class="ov-refresh-btn"
+              disabled={kvMissing}
+              title="Fetch traffic and repo stats now"
+            >
+              <svg viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M13.25 8A5.25 5.25 0 1 1 11.7 4.3" />
+                <path d="M13.25 1.75v3.5h-3.5" />
+              </svg>
+              <span>Refresh</span>
+            </button>
+          </form>
+        </div>
 
-          <nav class="status-actions" aria-label="Quick links">
-            <a href="/" target="_blank" rel="noopener">Open homepage ↗</a>
-            <a href="/about" target="_blank" rel="noopener">Open globe ↗</a>
-            <a href="#site">Edit content ↓</a>
-          </nav>
+        <section class="ov-card" aria-label="Traffic">
+          <header class="ov-card-head">
+            <h3>Traffic</h3>
+            <span class="status-text">last 7 days</span>
+          </header>
+          {stats.traffic.error && <p class="ov-error">{stats.traffic.error}</p>}
+          {
+            traffic ? (
+              <>
+                <div class="traffic-top">
+                  <div class="traffic-totals">
+                    <div>
+                      <span class="ov-big">{fmtNum(traffic.visits)}</span>
+                      <span class="ov-label">Visits</span>
+                    </div>
+                    <div>
+                      <span class="ov-big">{fmtNum(traffic.views)}</span>
+                      <span class="ov-label">Page views</span>
+                    </div>
+                  </div>
+                  <svg class="traffic-chart" viewBox="0 0 140 48" role="img" aria-label="Page views per day">
+                    {traffic.days.map((d, i) => {
+                      const h = Math.max(1, Math.round((d.views / maxViews) * 36));
+                      return (
+                        <g>
+                          <rect x={i * 20 + 2} y={38 - h} width="16" height={h} rx="1">
+                            <title>{`${d.date}: ${fmtNum(d.views)} views, ${fmtNum(d.visits)} visits`}</title>
+                          </rect>
+                          <text x={i * 20 + 10} y="47" text-anchor="middle">{weekday(d.date)}</text>
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
+                <div class="traffic-lists">
+                  {trafficLists.map((list) => (
+                    <div>
+                      <span class="ov-label">{list.title}</span>
+                      {list.rows.length ? (
+                        <ol class="ov-list">
+                          {list.rows.map((r) => (
+                            <li>
+                              <span class="ov-row-label" title={r.label}>{r.label}</span>
+                              <span class="status-text">{fmtNum(r.count)}</span>
+                            </li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <p class="ov-empty">None yet</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </>
+            ) : (
+              !stats.traffic.configured && (
+                <p class="ov-setup">
+                  Not set up yet. Turn on{" "}
+                  <a href={`${cfDash}/web-analytics`} target="_blank" rel="noopener">Cloudflare Web Analytics</a>{" "}
+                  for vishnubharath.com, add a <code>CF_ANALYTICS_TOKEN</code> secret (Account Analytics: Read),
+                  and set <code>CF_WEB_ANALYTICS_SITE_TAG</code> in wrangler.jsonc.
+                </p>
+              )
+            )
+          }
         </section>
+
+        <section class="ov-card" aria-label="Repo">
+          <header class="ov-card-head">
+            <h3>Repo</h3>
+            <a class="status-text" href={`https://github.com/${REPO}`} target="_blank" rel="noopener">{REPO} ↗</a>
+          </header>
+          {stats.github.error && <p class="ov-error">{stats.github.error}</p>}
+          {
+            gh ? (
+              <div class="repo-grid">
+                <div>
+                  <span class="ov-label">Recent commits</span>
+                  <ol class="ov-list ov-list--rows">
+                    {gh.commits.map((c) => (
+                      <li data-live={String(c.sha === BUILD.sha)}>
+                        <a class="sha" href={c.url} target="_blank" rel="noopener">{shortSha(c.sha)}</a>
+                        <span class="ov-row-label" title={c.message}>{c.message}</span>
+                        <span class="status-text">{c.sha === BUILD.sha ? "live · " : ""}{ago(c.at)}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </div>
+                <div>
+                  <a class="ov-label ov-label-link" href={`https://github.com/${REPO}/pulls`} target="_blank" rel="noopener">
+                    Open pull requests ↗
+                  </a>
+                  {gh.pulls.length ? (
+                    <ol class="ov-list ov-list--rows">
+                      {gh.pulls.map((p) => (
+                        <li>
+                          <a class="sha" href={p.url} target="_blank" rel="noopener">#{p.number}</a>
+                          <a class="ov-row-label ov-row-link" href={p.url} target="_blank" rel="noopener" title={p.title}>
+                            {p.title}
+                          </a>
+                          <span class="status-text">{ago(p.at)}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  ) : (
+                    <p class="ov-empty">None open</p>
+                  )}
+                  <span class="ov-label">Résumé</span>
+                  <p class="ov-line">
+                    <a href="/resume.pdf" target="_blank" rel="noopener">{resumeLabel}</a>
+                    <span class="status-text">
+                      {" "}· synced {gh.resumeSyncedAt ? ago(gh.resumeSyncedAt) : "never"}
+                    </span>
+                  </p>
+                </div>
+              </div>
+            ) : (
+              !stats.github.error && <p class="ov-empty">Press Refresh stats to load repo activity.</p>
+            )
+          }
+        </section>
+
+        <nav class="ov-links" aria-label="Quick links">
+          <a href={`${cfDash}/workers/services/view/website/production`} target="_blank" rel="noopener">Cloudflare Worker ↗</a>
+          <a href={`${cfDash}/web-analytics`} target="_blank" rel="noopener">Web Analytics ↗</a>
+          <a href={`https://github.com/${REPO}`} target="_blank" rel="noopener">GitHub ↗</a>
+          <a href="https://github.com/vishnu09bharath/resume/actions" target="_blank" rel="noopener">Résumé sync ↗</a>
+          <a href="https://resend.com/emails" target="_blank" rel="noopener">Resend ↗</a>
+        </nav>
+      </section>
 
         <section class="dash-pane" data-pane="site" hidden={initialTab !== "site"}>
           <header class="pane-head">
@@ -577,7 +766,7 @@ const fmtLon = (lon: number) =>
           </header>
 
           {
-            taskFlash && (
+            taskFlash && flashTab === "tasks" && (
               <p class:list={["dash-toast", taskFlash === "ok" ? "ok" : "err"]}>{taskMsg}</p>
             )
           }
@@ -768,47 +957,6 @@ const fmtLon = (lon: number) =>
       }
 
       /* ---------- Overview ---------- */
-      .status-panel {
-        border: 1px solid var(--rule);
-        border-radius: 3px;
-        padding: 0.4rem 1.2rem;
-      }
-      .status-list {
-        margin: 0;
-      }
-      .status-row {
-        position: relative;
-        display: grid;
-        grid-template-columns: 5rem minmax(0, 1fr) auto;
-        align-items: baseline;
-        gap: 1rem;
-        padding: 0.75rem 0;
-        border-bottom: 1px solid var(--rule);
-      }
-      .status-row:last-child {
-        border-bottom: 0;
-      }
-      .status-row dt {
-        margin: 0;
-        color: var(--muted);
-        font-size: 0.7rem;
-        font-weight: 500;
-        letter-spacing: 0.12em;
-        text-transform: uppercase;
-      }
-      .status-row dd {
-        margin: 0;
-        font-size: 0.95rem;
-        color: var(--fg);
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-      .status-state[data-on="true"] {
-        color: var(--fg);
-      }
-      .status-state[data-on="false"] {
-        color: var(--muted);
-      }
       .status-text {
         color: var(--muted);
       }
@@ -816,32 +964,377 @@ const fmtLon = (lon: number) =>
         margin: 0 0.2rem;
         color: var(--rule);
       }
-      .status-swatch {
-        display: inline-flex;
+      /* Section heads split Live (read on load) from the Hourly snapshot (cached,
+         refreshable) — the Refresh control sits with the data it refreshes. */
+      .ov-section-head {
+        display: flex;
         align-items: center;
-        justify-content: center;
-        width: 2.1rem;
-        height: 1.5rem;
-        border: 1px solid var(--rule);
-        border-radius: 2px;
-        font-size: 0.7rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
+        justify-content: space-between;
+        gap: 0.5rem 1rem;
+        min-height: 2rem;
+        margin: 2rem 0 0.65rem;
       }
-
-      .status-actions {
+      .health-grid ~ .ov-section-head {
+        padding-top: 1.25rem;
+        border-top: 1px solid var(--rule);
+      }
+      .pane-head + .ov-section-head {
+        margin-top: 0;
+      }
+      .ov-section-head .ov-label {
+        margin: 0;
+        line-height: 1.2;
+        text-align: left;
+      }
+      .ov-section-title {
         display: flex;
         flex-wrap: wrap;
-        gap: 1.5rem;
-        margin-top: 1.25rem;
+        align-items: baseline;
+        gap: 0.2rem 0.75rem;
+        min-width: 0;
       }
-      .status-actions a {
+      .ov-meta {
         color: var(--muted);
-        font-size: 0.88rem;
+        font-size: 0.8rem;
+        font-variant-numeric: tabular-nums;
+      }
+      .ov-section-head + .ov-card {
+        margin-top: 0;
+      }
+      .ov-refresh {
+        flex-shrink: 0;
+        margin: 0;
+      }
+      .ov-section-head button.ov-refresh-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.45rem;
+        padding: 0.4rem 0.75rem;
+        background: transparent;
+        color: var(--muted);
+        border: 1px solid var(--rule);
+        border-radius: 2px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        line-height: 1;
+        transition:
+          color 150ms ease,
+          border-color 150ms ease,
+          transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+      }
+      @media (hover: hover) and (pointer: fine) {
+        .ov-section-head button.ov-refresh-btn:hover:not(:disabled) {
+          color: var(--fg);
+          border-color: var(--muted);
+        }
+      }
+      .ov-section-head button.ov-refresh-btn:active:not(:disabled) {
+        transform: scale(0.97);
+      }
+      .ov-section-head button.ov-refresh-btn:focus-visible {
+        outline: 2px solid var(--fg);
+        outline-offset: 2px;
+      }
+      .ov-section-head button.ov-refresh-btn[aria-busy="true"]:disabled {
+        color: var(--fg);
+        opacity: 1;
+        cursor: progress;
+      }
+      .ov-refresh-btn svg {
+        width: 0.85rem;
+        height: 0.85rem;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .ov-refresh-btn[aria-busy="true"] svg {
+        animation: ov-spin 750ms linear infinite;
+      }
+      @keyframes ov-spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ov-refresh-btn[aria-busy="true"] svg {
+          animation: none;
+        }
+      }
+      .ov-list.ov-list--rows li {
+        display: grid;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        column-gap: 0.6rem;
+      }
+      .ov-label {
+        display: block;
+        color: var(--muted);
+        font-size: 0.7rem;
+        font-weight: 500;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+      .health-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+      }
+      .health-cell {
+        display: flex;
+        flex-direction: column;
+        gap: 0.3rem;
+        min-width: 0;
+        padding: 0.9rem 1rem;
+        border-right: 1px solid var(--rule);
+      }
+      .health-cell:last-child {
+        border-right: 0;
+      }
+      .health-value {
+        color: var(--fg);
+        font-size: 1rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
         text-decoration: none;
       }
-      .status-actions a:hover {
+      a.health-value:hover {
+        text-decoration: underline;
+        text-underline-offset: 0.2em;
+      }
+      .health-value::before {
+        content: "";
+        display: inline-block;
+        width: 0.45rem;
+        height: 0.45rem;
+        margin-right: 0.45rem;
+        border-radius: 50%;
+        vertical-align: 0.1em;
+        background: var(--rule);
+      }
+      .health-cell[data-tone="ok"] .health-value::before {
+        background: #01ed7e;
+      }
+      .health-cell[data-tone="warn"] .health-value::before {
+        background: #ffb020;
+      }
+      .health-cell[data-tone="bad"] .health-value::before {
+        background: #ff6b66;
+      }
+      .health-detail {
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 0.8rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .ov-card {
+        margin-top: 1.25rem;
+        padding: 1rem 1.2rem;
+        border: 1px solid var(--rule);
+        border-radius: 3px;
+      }
+      .ov-card-head {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 0.9rem;
+      }
+      .ov-card-head h3 {
+        margin: 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        letter-spacing: normal;
+        text-align: left;
+        text-transform: none;
         color: var(--fg);
+      }
+      .ov-card-head a {
+        font-size: 0.8rem;
+        text-decoration: none;
+      }
+      .ov-card-head a:hover {
+        color: var(--fg);
+      }
+      .ov-error {
+        margin: 0 0 0.8rem;
+        color: #ff6b66;
+        font-size: 0.85rem;
+        overflow-wrap: anywhere;
+      }
+      .ov-setup,
+      .ov-empty {
+        margin: 0.45rem 0 0.9rem;
+        color: var(--muted);
+        font-size: 0.85rem;
+        line-height: 1.55;
+      }
+      .ov-setup {
+        margin: 0;
+      }
+      .ov-setup a {
+        color: var(--fg);
+      }
+      .traffic-top {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 1rem 2rem;
+      }
+      .traffic-totals {
+        display: flex;
+        gap: 2rem;
+      }
+      .ov-big {
+        display: block;
+        color: var(--fg);
+        font-size: 1.6rem;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        letter-spacing: -0.02em;
+      }
+      .traffic-chart {
+        width: min(100%, 16rem);
+        height: auto;
+      }
+      .traffic-chart rect {
+        fill: var(--fg);
+        opacity: 0.8;
+      }
+      .traffic-chart text {
+        fill: var(--muted);
+        font-size: 6px;
+      }
+      .traffic-lists,
+      .repo-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 1rem 1.5rem;
+        margin-top: 1.1rem;
+      }
+      .repo-grid {
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+        margin-top: 0;
+      }
+      .ov-list {
+        display: grid;
+        gap: 0.3rem;
+        margin: 0.45rem 0 0.9rem;
+        padding: 0;
+        font-size: 0.85rem;
+        list-style: none;
+      }
+      .ov-list li {
+        display: flex;
+        align-items: baseline;
+        gap: 0.6rem;
+        min-width: 0;
+      }
+      .ov-row-label {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        color: var(--fg);
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .ov-row-link,
+      .ov-label-link {
+        text-decoration: none;
+      }
+      .ov-row-link:hover {
+        text-decoration: underline;
+        text-decoration-color: var(--muted);
+        text-underline-offset: 0.2em;
+      }
+      .ov-label-link:hover {
+        color: var(--fg);
+      }
+      .ov-list .status-text {
+        flex-shrink: 0;
+        font-variant-numeric: tabular-nums;
+      }
+      .sha {
+        flex-shrink: 0;
+        color: var(--muted);
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 0.78rem;
+        text-decoration: none;
+      }
+      .sha:hover {
+        color: var(--fg);
+      }
+      .ov-list li[data-live="true"] .sha {
+        color: #01ed7e;
+      }
+      .ov-line {
+        margin: 0.45rem 0 0;
+        font-size: 0.85rem;
+      }
+      .ov-line a {
+        color: var(--fg);
+      }
+      .ov-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.5rem;
+        margin-top: 1.25rem;
+      }
+      .ov-links a {
+        color: var(--muted);
+        font-size: 0.85rem;
+        text-decoration: none;
+      }
+      .ov-links a:hover {
+        color: var(--fg);
+      }
+      @media (max-width: 720px) {
+        .health-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+        .health-cell:nth-child(2) {
+          border-right: 0;
+        }
+        .health-cell:nth-child(-n + 2) {
+          border-bottom: 1px solid var(--rule);
+        }
+        .traffic-lists,
+        .repo-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+        .health-cell {
+          padding: 0.8rem 0.85rem;
+        }
+        .health-detail {
+          display: -webkit-box;
+          white-space: normal;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+        }
+        .traffic-totals {
+          gap: 1.5rem;
+        }
+        .traffic-chart {
+          width: 100%;
+        }
+        .ov-card {
+          padding: 0.9rem 0.95rem;
+        }
+        /* Commit/PR rows: let the message use the full width, time underneath. */
+        .ov-list.ov-list--rows {
+          gap: 0.6rem;
+        }
+        .ov-list.ov-list--rows li {
+          grid-template-columns: auto minmax(0, 1fr);
+          row-gap: 0.1rem;
+        }
+        .ov-list.ov-list--rows li .status-text {
+          grid-column: 2;
+          font-size: 0.75rem;
+        }
       }
 
       /* ---------- Tasks ---------- */
@@ -1526,6 +2019,30 @@ const fmtLon = (lon: number) =>
           // Defer so the submitter's name/value still makes it into the POST.
           setTimeout(() => form.querySelectorAll("button").forEach((b) => (b.disabled = true)));
         });
+      });
+
+      // ---------- Overview: spin the Refresh icon while stats are fetched ----------
+      const refreshForm = document.querySelector<HTMLFormElement>(".ov-refresh");
+      const setRefreshing = (btn: HTMLButtonElement, busy: boolean) => {
+        btn.toggleAttribute("aria-busy", busy);
+        if (busy) btn.setAttribute("aria-busy", "true");
+        const label = btn.querySelector("span");
+        if (label) label.textContent = busy ? "Refreshing…" : "Refresh";
+      };
+      refreshForm?.addEventListener("submit", (e) => {
+        const btn = (e as SubmitEvent).submitter as HTMLButtonElement | null;
+        if (!btn) return;
+        setRefreshing(btn, true);
+        // Defer so the submitter's name/value still makes it into the POST.
+        setTimeout(() => (btn.disabled = true));
+      });
+      // Coming back via the back/forward cache would otherwise leave it spinning.
+      window.addEventListener("pageshow", (e) => {
+        const btn = refreshForm?.querySelector<HTMLButtonElement>("button");
+        if (e.persisted && btn) {
+          setRefreshing(btn, false);
+          btn.disabled = false;
+        }
       });
 
       // ---------- Banner: text + link live preview ----------

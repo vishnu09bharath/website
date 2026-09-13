@@ -8,6 +8,7 @@
 
 import type { Task } from "./types";
 import newsRefresh from "./news-refresh";
+import overviewStats from "./overview-stats";
 import resumeTokenReminder from "./resume-token-reminder";
 
-export const TASKS: Task[] = [newsRefresh, resumeTokenReminder];
+export const TASKS: Task[] = [newsRefresh, overviewStats, resumeTokenReminder];

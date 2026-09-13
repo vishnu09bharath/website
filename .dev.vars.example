@@ -21,3 +21,10 @@ CF_AI_TOKEN=
 # Resend (sending-only key for vishnubharath.com) — scheduled-task emails:
 # reminders and failure alerts, sent from website@vishnubharath.com to ALLOWED_EMAIL.
 RESEND_API_KEY=
+
+# /admin Overview traffic: Cloudflare API token with Account Analytics: Read.
+# The Web Analytics site tag lives in wrangler.jsonc vars (not secret).
+CF_ANALYTICS_TOKEN=
+
+# Optional: GitHub token if the Overview's repo stats hit anonymous rate limits.
+GITHUB_TOKEN=
