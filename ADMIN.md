@@ -15,7 +15,8 @@ is only the seed/fallback used before the first edit.
 ## Local editing (no login)
 
 ```sh
-npm run dev
+pnpm install
+pnpm dev
 ```
 
 Open **http://localhost:4321/admin** — in dev the panel is open (no OAuth needed)
@@ -48,7 +49,7 @@ export default {
 } satisfies Task;
 ```
 
-…then add it to `TASKS` in `src/tasks/index.ts`. `npm test` checks ids are
+…then add it to `TASKS` in `src/tasks/index.ts`. `pnpm test` checks ids are
 unique and schedules are valid.
 
 Behaviour worth knowing:
@@ -63,7 +64,7 @@ Behaviour worth knowing:
   next tick. On the Workers **Free** plan a cron invocation gets only 10 ms of CPU,
   so heavy tasks like the news refresh need **Workers Paid**.
 
-Local cron test: `npm run build && npx wrangler dev --test-scheduled`, then
+Local cron test: `pnpm build && pnpm exec wrangler dev --test-scheduled`, then
 `curl "http://localhost:8787/__scheduled?cron=*/15+*+*+*+*"`.
 
 ## Overview tab
@@ -92,7 +93,7 @@ These need your accounts (I can't do them for you).
 ### 1. KV namespace
 
 Already created — its id is in `wrangler.jsonc`, and every deploy binds it as
-`SITE_KV`. (To recreate: `npx wrangler kv namespace create SITE_KV`.)
+`SITE_KV`. (To recreate: `pnpm exec wrangler kv namespace create SITE_KV`.)
 
 ### 2. Google OAuth client
 
@@ -138,8 +139,8 @@ ordered to keep downtime to a minimum:
 
 1. **Create the Worker from git.** Workers & Pages → Create → Import a
    repository → `vishnu09bharath/website`. Name it `website` (matching `name` in
-   `wrangler.jsonc`). Build command `npm run build`, deploy command
-   `npx wrangler deploy`, production branch `main`.
+   `wrangler.jsonc`). Build command `pnpm run build`, deploy command
+   `pnpm exec wrangler deploy`, production branch `main`.
 2. **Add the secrets** from the table above to the new Worker. Pages secrets
    can't be read back, so re-enter them from their sources (a good moment to
    rotate `CF_AI_TOKEN` and `AUTH_SECRET`; rotating `AUTH_SECRET` just logs you out).

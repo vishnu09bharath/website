@@ -2,6 +2,7 @@
 
 Minimalist Astro 5 portfolio deployed on Cloudflare. Custom KV-backed CMS
 (`/log-in` → `/admin`, Google OAuth). Keep deps pinned and the build minimal.
+Package manager is **pnpm** (never npm/yarn); a fresh worktree needs `pnpm install`.
 
 ## Running the dev server across worktrees
 
@@ -16,7 +17,7 @@ checkout but means every worktree would fight over the same port. So:
   ```sh
   WT=$(basename "$PWD")
   PORT=$([ "$WT" = "website" ] && echo 4399 || echo $((4400 + $(echo -n "$WT" | cksum | cut -d' ' -f1) % 90)))
-  npm run dev -- --port "$PORT"
+  pnpm dev --port "$PORT"
   ```
 
   (Main checkout → 4399; each worktree → a stable port in 4400–4489.)
@@ -29,8 +30,8 @@ checkout but means every worktree would fight over the same port. So:
 
 - **If more than 4 dev servers are already running, do NOT start another one.**
   Instead:
-  1. Validate changes with `npm run build` (it type-checks and catches most
-     issues without a server). Only reach for `npm run preview` if a genuine
+  1. Validate changes with `pnpm build` (it type-checks and catches most
+     issues without a server). Only reach for `pnpm preview` if a genuine
      runtime check is unavoidable.
   2. If a running server must be freed up, **ask me first** before killing any of
      the others — list which worktrees/ports are in use and let me pick. Never
