@@ -181,11 +181,14 @@ const year = new Date().getFullYear();
         align-items: center;
         gap: 0.6rem;
         align-self: flex-start;
+        /* Match the security-key input's height so the swap doesn't shift layout. */
+        box-sizing: border-box;
+        height: 42px;
         background: color-mix(in srgb, var(--fg) 7%, transparent);
         color: var(--fg);
         border: 1px solid var(--rule);
         border-radius: 3px;
-        padding: 0.65rem 1.2rem;
+        padding: 0 1.2rem;
         font-size: 0.92rem;
         font-weight: 500;
         text-decoration: none;
@@ -216,6 +219,8 @@ const year = new Date().getFullYear();
       }
       .codeword-input {
         align-self: flex-start;
+        box-sizing: border-box;
+        height: 42px;
         width: min(22rem, 70vw);
         background: color-mix(in srgb, var(--fg) 7%, transparent);
         color: var(--fg);
