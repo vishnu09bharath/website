@@ -380,13 +380,17 @@ const fmtLon = (lon: number) =>
                   </ol>
                 </div>
                 <div>
-                  <span class="ov-label">Open pull requests</span>
+                  <a class="ov-label ov-label-link" href={`https://github.com/${REPO}/pulls`} target="_blank" rel="noopener">
+                    Open pull requests ↗
+                  </a>
                   {gh.pulls.length ? (
                     <ol class="ov-list ov-list--rows">
                       {gh.pulls.map((p) => (
                         <li>
                           <a class="sha" href={p.url} target="_blank" rel="noopener">#{p.number}</a>
-                          <span class="ov-row-label" title={p.title}>{p.title}</span>
+                          <a class="ov-row-label ov-row-link" href={p.url} target="_blank" rel="noopener" title={p.title}>
+                            {p.title}
+                          </a>
                           <span class="status-text">{ago(p.at)}</span>
                         </li>
                       ))}
@@ -1236,6 +1240,18 @@ const fmtLon = (lon: number) =>
         color: var(--fg);
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+      .ov-row-link,
+      .ov-label-link {
+        text-decoration: none;
+      }
+      .ov-row-link:hover {
+        text-decoration: underline;
+        text-decoration-color: var(--muted);
+        text-underline-offset: 0.2em;
+      }
+      .ov-label-link:hover {
+        color: var(--fg);
       }
       .ov-list .status-text {
         flex-shrink: 0;
