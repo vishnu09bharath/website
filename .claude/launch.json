@@ -6,6 +6,12 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--", "--port", "4399"],
       "port": 4399
+    },
+    {
+      "name": "worker-cron",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["wrangler", "dev", "--test-scheduled", "--port", "4398"],
+      "port": 4398
     }
   ]
 }

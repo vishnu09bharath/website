@@ -17,3 +17,7 @@ ALLOWED_EMAIL=mr.vishnubharath@gmail.com
 # In production set with `wrangler secret put CF_ACCOUNT_ID` / `... CF_AI_TOKEN`.
 CF_ACCOUNT_ID=
 CF_AI_TOKEN=
+
+# Resend (sending-only key for vishnubharath.com) — scheduled-task emails:
+# reminders and failure alerts, sent from website@vishnubharath.com to ALLOWED_EMAIL.
+RESEND_API_KEY=
