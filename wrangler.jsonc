@@ -19,11 +19,12 @@
 		"binding": "ASSETS",
 		"directory": "dist"
 	},
-	// Public (non-secret) config. The Web Analytics site tag is shown under
-	// Cloudflare → Web Analytics → your site; the /admin Overview's traffic card
-	// also needs the CF_ANALYTICS_TOKEN secret (Account Analytics: Read).
+	// Public (non-secret) config. The Web Analytics site tag is the siteTag~in=
+	// value in the URL of the site's Web Analytics dashboard (not the beacon token
+	// in the JS snippet); the /admin Overview's traffic card also needs the
+	// CF_ANALYTICS_TOKEN secret (Account Analytics: Read).
 	"vars": {
-		"CF_WEB_ANALYTICS_SITE_TAG": ""
+		"CF_WEB_ANALYTICS_SITE_TAG": "66733975b3c447799ed39c930b069659"
 	},
 	// Editable site content (banner + globe travel) for the /admin CMS.
 	// Create the namespace once with: wrangler kv namespace create SITE_KV
